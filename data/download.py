@@ -8,7 +8,7 @@ logger = logging.getLogger(name=__name__)
 
 
 # Functions
-def download_and_extract(url: str = MINION_URL, destination_dir: str = DATASETS_DIR):
+def download_and_extract(url: str = SNLI_URL, destination_dir: str = DATASETS_DIR):
     """
     This function downloads a zip file from a given url into a destination directory then unzip it.
     :param url: (type: str) The url to download the zip file from.
