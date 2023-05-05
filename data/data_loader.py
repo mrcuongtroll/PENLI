@@ -49,10 +49,10 @@ class ESNLIDataset(Dataset):
         ignored_token_id = IGNORE_ID
         mask_token = self.tokenizer.mask_token
         data = self.data.iloc[idx]
-        premise = data['Sentence1']
-        hypothesis = data['Sentence2']
-        label = data['gold_label']
-        explanation = data['Explanation_1']
+        premise = str(data['Sentence1'])
+        hypothesis = str(data['Sentence2'])
+        label = str(data['gold_label'])
+        explanation = str(data['Explanation_1'])
         token_type = 0
         token_type_ids = []
         labels = []
