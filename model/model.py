@@ -3,7 +3,6 @@ import torch.nn as nn
 from transformers import BertModel, BertConfig, BertForMaskedLM, BertTokenizer
 from transformers.models.bert.modeling_bert import BertEmbeddings
 import logging
-from langdetect import detect
 from definitions import *
 from typing import Tuple
 
