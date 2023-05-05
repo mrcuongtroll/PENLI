@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import logging
-from utils.utils import AverageMeter, sequence_evaluation_metrics
+from utils.utils import AverageMeter, compute_masked_lm_results
 from utils.config import ConfigParser
 from definitions import *
 
@@ -49,16 +49,19 @@ class Trainer:
                 if self.valid_loader is not None:
                     valid_result = self._eval_epoch(epoch)
                     valid_loss = valid_result['loss']
-                    valid_acc = valid_result['acc']
+                    valid_acc = valid_result['inference_acc']
                     valid_result[
                         'state_dict'] = self.model.state_dict() if self.model else self.model.state_dict()
                     valid_result['optimizer'] = self.optimizer.state_dict()
                     valid_result['lr_scheduler'] = self.lr_scheduler.state_dict() if self.lr_scheduler else None
                     valid_result['epoch'] = epoch + 1
                     if valid_acc > self.best_acc:
+                        self.best_acc = valid_acc
                         logger.info(f"New best valid acc found: {valid_acc}. Saving checkpoint...")
+                        valid_result['best_acc'] = self.best_acc
                         torch.save(valid_result, os.path.join(self.config['save_dir'], 'checkpoint_best.pt'))
                     logger.info(f"------> Saving checkpoint...")
+                    valid_result['best_acc'] = self.best_acc
                     torch.save(valid_result, os.path.join(self.config['save_dir'], 'checkpoint_last.pt'))
                     logger.info("------> Done.")
         return
@@ -67,10 +70,9 @@ class Trainer:
         self.model.train()
         result = None
         loss_meter = AverageMeter()
-        acc_meter = AverageMeter()
-        precision_meter = AverageMeter()
-        recall_meter = AverageMeter()
-        f1_meter = AverageMeter()
+        ground_truth = []
+        predictions = []
+        token_types = []
         num_batches_per_print = len(self.train_loader) // self.config['num_prints']
         for batch_idx, batch in enumerate(self.train_loader):
             input_ids, token_type_ids, attention_mask, labels = batch.values()
@@ -96,39 +98,36 @@ class Trainer:
             if self.lr_scheduler:
                 self.lr_scheduler.step()
             pred = torch.argmax(outputs, dim=-1)
-            metrics = sequence_evaluation_metrics(pred, labels)
+            predictions.extend(pred.detach().cpu().numpy())
+            ground_truth.extend(labels.detach().cpu().numpy())
+            token_types.extend(token_type_ids.detach().cpu().numpy())
             loss_meter.update(loss.item())
-            acc_meter.update(metrics['overall_accuracy'])
-            precision_meter.update(metrics['overall_precision'])
-            recall_meter.update(metrics['overall_recall'])
-            f1_meter.update(metrics['overall_f1'])
             result = {"loss": loss_meter.average(),
-                      "acc": acc_meter.average(),
-                      'precision': precision_meter.average(),
-                      'recall': recall_meter.average(),
-                      'f1': f1_meter.average(),
-                      "lr": lr,
-                      'details': metrics}
+                      "lr": lr}
             if (batch_idx + 1) % num_batches_per_print == 0:
                 logger.info(f"Training "
                             f"[{batch_idx * self.train_loader.batch_size}/{len(self.train_loader.dataset)} "
                             f"({(100. * batch_idx / len(self.train_loader)):.0f}%)] "
                             f"| Loss: {loss_meter.average():.5f} "
-                            f"| Accuracy: {acc_meter.average():.4f} "
-                            f"| Precision: {precision_meter.average():.4f} "
-                            f"| Recall: {recall_meter.average():.4f} "
-                            f"| F1 Score: {f1_meter.average():.4f} "
                             f"| Learning Rate: {lr}")
+        metrics = compute_masked_lm_results(predictions, ground_truth, token_types)
+        logger.info(f"Finished training epoch {epoch} "
+                    f"| Loss: {loss_meter.average():.5f} "
+                    f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
+                    f"| Masked LM Accuracy: {metrics['mlm_acc']:.4f} "
+                    )
+        result['inference_acc'] = metrics['inference_acc']
+        result['mlm_acc'] = metrics['mlm_acc']
+        result['details'] = metrics
         return result
 
     def _eval_epoch(self, epoch):
         self.model.eval()
         result = None
         loss_meter = AverageMeter()
-        acc_meter = AverageMeter()
-        precision_meter = AverageMeter()
-        recall_meter = AverageMeter()
-        f1_meter = AverageMeter()
+        ground_truth = []
+        predictions = []
+        token_types = []
         num_batches_per_print = len(self.valid_loader) // self.config['num_prints']
         for batch_idx, batch in enumerate(self.valid_loader):
             input_ids, token_type_ids, attention_mask, labels = batch.values()
@@ -144,28 +143,27 @@ class Trainer:
                 p_outputs = torch.permute(outputs, (0, 2, 1))
                 loss = self.criterion(p_outputs, labels)
                 pred = torch.argmax(outputs, dim=-1)
-                metrics = sequence_evaluation_metrics(pred, labels)
+                predictions.extend(pred.detach().cpu().numpy())
+                ground_truth.extend(labels.detach().cpu().numpy())
+                token_types.extend(token_type_ids.detach().cpu().numpy())
                 loss_meter.update(loss.item())
-                acc_meter.update(metrics['overall_accuracy'])
-                precision_meter.update(metrics['overall_precision'])
-                recall_meter.update(metrics['overall_recall'])
-                f1_meter.update(metrics['overall_f1'])
-                result = {"loss": loss_meter.average(),
-                          "acc": acc_meter.average(),
-                          'precision': precision_meter.average(),
-                          'recall': recall_meter.average(),
-                          'f1': f1_meter.average(),
-                          'details': metrics
+                result = {"loss": loss_meter.average()
                           }
                 if (batch_idx + 1) % num_batches_per_print == 0:
                     logger.info(f"Evaluating "
                                 f"[{batch_idx * self.valid_loader.batch_size}/{len(self.valid_loader.dataset)} "
                                 f"({(100. * batch_idx / len(self.valid_loader)):.0f}%)] "
                                 f"| Loss: {loss_meter.average():.5f} "
-                                f"| Accuracy: {acc_meter.average():.4f} "
-                                f"| Precision: {precision_meter.average():.4f} "
-                                f"| Recall: {recall_meter.average():.4f} "
-                                f"| F1 Score: {f1_meter.average():.4f} ")
+                                )
+        metrics = compute_masked_lm_results(predictions, ground_truth, token_types)
+        logger.info(f"Finished evaluating epoch {epoch} "
+                    f"| Loss: {loss_meter.average():.5f} "
+                    f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
+                    f"| Masked LM Accuracy: {metrics['mlm_acc']:.4f} "
+                    )
+        result['inference_acc'] = metrics['inference_acc']
+        result['mlm_acc'] = metrics['mlm_acc']
+        result['details'] = metrics
         return result
 
     def _load_model(self):
@@ -176,6 +174,7 @@ class Trainer:
         self.optimizer.param_groups[0]['capturable'] = True
         if self.lr_scheduler is not None:
             self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
+        self.best_acc = checkpoint['best_acc']
         self.current_epoch = checkpoint['epoch']
         logger.info(f"------> Loaded checkpoint from {checkpoint_path}")
 
