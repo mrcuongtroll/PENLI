@@ -20,6 +20,11 @@ def download_and_extract(url: str = SNLI_URL, destination_dir: str = DATASETS_DI
     logger.info("---> Done.")
     logger.info(f"Extracting downloaded file...")
     with ZipFile(filename, 'r') as z:
-        z.extractall(path=destination_dir)
+        # z.extractall(path=destination_dir)
+        for file in z.namelist():
+            try:
+                z.extract(file, path=destination_dir)
+            except:
+                pass
     logger.info("---> Done.")
     return

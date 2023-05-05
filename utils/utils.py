@@ -1,16 +1,13 @@
 from prettytable import PrettyTable
-import evaluate
 import torch
+import numpy as np
 import logging
 import json
+from typing import Tuple, List
 from definitions import *
 
 
 logger = logging.getLogger(name=__name__)
-
-
-# Objects
-SEQEVAL = evaluate.load('seqeval')
 
 
 # Classes
@@ -64,30 +61,31 @@ def count_parameters(model):
     return total_params
 
 
-def sequence_evaluation_metrics(predictions, labels):
-    id2label = MINION_ID_TO_LABEL.copy()
-    for idx in id2label.keys():
-        label = id2label[idx]
-        id2label[idx] = label.replace('-', '+').replace('_', '-').replace('+', '_')
-    if isinstance(predictions, torch.Tensor):
-        true_predictions = [
-            [id2label[p.item()] for (p, l) in zip(prediction, label) if l != -100]
-            for prediction, label in zip(predictions, labels)
-        ]
-    else:
-        true_predictions = [
-            [id2label[p] for (p, l) in zip(prediction, label) if l != -100]
-            for prediction, label in zip(predictions, labels)
-        ]
-    if isinstance(labels, torch.Tensor):
-        true_labels = [
-            [id2label[l.item()] for (p, l) in zip(prediction, label) if l != -100]
-            for prediction, label in zip(predictions, labels)
-        ]
-    else:
-        true_labels = [
-            [id2label[l] for (p, l) in zip(prediction, label) if l != -100]
-            for prediction, label in zip(predictions, labels)
-        ]
-    results = SEQEVAL.compute(predictions=true_predictions, references=true_labels)
-    return results
+def compute_masked_lm_results(predictions: List[np.ndarray],
+                              ground_truth: List[np.ndarray],
+                              token_type_ids: List[np.ndarray]):
+    """
+    Compute masked language modeling accuracy and natural language inference accuracy.
+    :param predictions: list of predictions
+    :param ground_truth: list of ground truth labels
+    :param token_type_ids: the token_type_ids corresponding to the samples. (0 for the first sentence, 1 for the second)
+    :return: {'inference_acc': ..., 'mlm_acc': ...}
+    """
+    assert len(predictions) == len(ground_truth), "predictions and ground_truth must have matching length."
+    assert len(token_type_ids) == len(ground_truth), "token_type_ids and ground_truth must have matching length"
+    num_tokens_total = 0
+    num_tokens_correct = 0
+    num_inference_correct = 0
+    for i in range(len(predictions)):
+        token_mask = ground_truth[i] != IGNORE_ID
+        true_prediction_mask = (predictions[i] == ground_truth[i]) * token_mask
+        num_tokens_correct += true_prediction_mask.sum()
+        num_tokens_total += token_mask.sum()
+        for j in range(len(token_type_ids[i])):
+            if token_type_ids[i][j] == 1:
+                if predictions[i][j] == ground_truth[i][j]:
+                    num_inference_correct += 1
+                break
+    inference_acc = num_inference_correct / len(ground_truth)
+    mlm_acc = num_tokens_correct / num_tokens_total
+    return {'inference_acc': inference_acc, 'mlm_acc': mlm_acc}

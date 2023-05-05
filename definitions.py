@@ -16,6 +16,7 @@ SNLI_URL = 'https://nlp.stanford.edu/projects/snli/snli_1.0.zip'
 E_SNLI_DIR = os.path.join(DATASETS_DIR, 'e-SNLI')
 DATASET_TYPES = ('train', 'training', 'test', 'testing', 'dev', 'valid', 'development', 'validation')
 LABEL_MAPPING = {'neutral': 'Maybe', 'contradiction': 'No', 'entailment': 'Yes'}
+IGNORE_ID = -100
 
 
 # Models
