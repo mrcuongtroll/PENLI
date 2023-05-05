@@ -12,7 +12,7 @@ logger = logging.getLogger(name=__name__)
 
 
 # Classes
-class BertPENIL(nn.Module):
+class BertPENLI(nn.Module):
 
     def __init__(self,
                  pretrained: str = PLM[0],
@@ -21,7 +21,7 @@ class BertPENIL(nn.Module):
         :param pretrained: HuggingFace's pretrained model's name. Please refer to
                            (https://huggingface.co/transformers/v3.3.1/pretrained_models.html).
         """
-        super(BertPENIL, self).__init__()
+        super(BertPENLI, self).__init__()
         # Load pretrained model
         self.tokenizer = BertTokenizer.from_pretrained(pretrained)
         self.bert = BertForMaskedLM.from_pretrained(pretrained)

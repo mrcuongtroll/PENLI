@@ -1,9 +1,6 @@
 numpy
 torch
 transformers
-evaluate
-seqeval
 argparse
 wget
-langdetect
 prettytable

@@ -66,10 +66,9 @@ class ESNLIDataset(Dataset):
             # Special tokens: [CLS]: 101, [SEP]: 102, [MASK]: 103
             # raw_labels = f"{hypothesis} {sep_token} {LABEL_MAPPING[label]} . {premise}"
             # labels = self.tokenizer.encode(raw_labels, do_lower_case=True)
-            labels.extend(self.tokenizer.encode(hypothesis, do_lower_case=True, add_special_tokens=False))
+            labels.extend(self.tokenizer.encode(hypothesis, add_special_tokens=False))
             labels.append(ignored_token_id)
             labels.extend(self.tokenizer.encode(f"{LABEL_MAPPING[label]} . {premise}",
-                                                do_lower_case=True,
                                                 add_special_tokens=False
                                                 )
                           )
