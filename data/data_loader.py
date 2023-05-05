@@ -58,7 +58,7 @@ class ESNLIDataset(Dataset):
         labels = []
         if self.model_type == 0:
             raw_input = f"{hypothesis} {sep_token} {mask_token} . {premise}"
-            encodings = self.tokenizer.encode(raw_input, do_lower_case=True)
+            encodings = self.tokenizer.encode(raw_input)
             for encoding in encodings:
                 token_type_ids.append(token_type)
                 if encoding == sep_token_id:
