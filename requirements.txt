@@ -1,6 +1,7 @@
 numpy
 torch
 transformers
+sentencepiece
 argparse
 wget
 prettytable
