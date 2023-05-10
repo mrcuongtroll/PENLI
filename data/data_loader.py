@@ -44,18 +44,18 @@ class ESNLIDataset(Dataset):
         return self.len
 
     def __getitem__(self, idx):
-        cls_token_id = self.tokenizer.cls_token_id
-        sep_token_id = self.tokenizer.sep_token_id
-        sep_token = self.tokenizer.sep_token
-        mask_token_id = self.tokenizer.mask_token_id
-        ignored_token_id = IGNORE_ID
-        mask_token = self.tokenizer.mask_token
         data = self.data.iloc[idx]
         premise = str(data['Sentence1'])
         hypothesis = str(data['Sentence2'])
         label = str(data['gold_label'])
         explanation = str(data['Explanation_1'])
         if self.model_type == 0:
+            cls_token_id = self.tokenizer.cls_token_id
+            sep_token_id = self.tokenizer.sep_token_id
+            sep_token = self.tokenizer.sep_token
+            mask_token_id = self.tokenizer.mask_token_id
+            ignored_token_id = IGNORE_ID
+            mask_token = self.tokenizer.mask_token
             token_type = 0
             token_type_ids = []
             labels = []
