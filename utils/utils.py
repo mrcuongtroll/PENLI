@@ -89,3 +89,28 @@ def compute_masked_lm_results(predictions: List[np.ndarray],
     inference_acc = num_inference_correct / len(ground_truth)
     mlm_acc = num_tokens_correct / num_tokens_total
     return {'inference_acc': inference_acc, 'mlm_acc': mlm_acc}
+
+
+def compute_generative_results(predictions: List[np.ndarray],
+                               ground_truth: List[np.ndarray]):
+    """
+    Compute generative encoder-decoder accuracy and natural language inference accuracy.
+    :param predictions: list of predictions
+    :param ground_truth: list of ground truth labels
+    :return: {'inference_acc': ..., 'generation_acc': ...}
+    """
+    assert len(predictions) == len(ground_truth), "predictions and ground_truth must have matching length."
+    num_tokens_total = 0
+    num_tokens_correct = 0
+    num_inference_correct = 0
+    for i in range(len(predictions)):
+        token_mask = ground_truth[i] != IGNORE_ID
+        true_prediction_mask = (predictions[i] == ground_truth[i]) * token_mask
+        num_tokens_correct += true_prediction_mask.sum()
+        num_tokens_total += token_mask.sum()
+        # Since we set the label to contain only 1 word, we assume that the first word is the answer we need
+        if predictions[i][0] == ground_truth[i][0]:
+            num_inference_correct += 1
+    inference_acc = num_inference_correct / len(ground_truth)
+    generation_acc = num_tokens_correct / num_tokens_total
+    return {'inference_acc': inference_acc, 'generation_acc': generation_acc}

@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import logging
-from utils.utils import AverageMeter, compute_masked_lm_results
+from utils.utils import AverageMeter, compute_masked_lm_results, compute_generative_results
 from utils.config import ConfigParser
+from model.model import BertPENLI, T5PENLI
 from definitions import *
 
 logger = logging.getLogger(name=__name__)
@@ -32,8 +33,8 @@ class Trainer:
         self.config = config
         self.current_epoch = 0
         self.best_acc = 0
-        if self.config['freeze_bert']:
-            self.model.freeze_bert(freeze=True)
+        if self.config['freeze_plm']:
+            self.model.freeze_plm(freeze=True)
 
     def train(self, resume=False):
         with torch.autograd.set_detect_anomaly(True):
@@ -75,15 +76,29 @@ class Trainer:
         token_types = []
         num_batches_per_print = len(self.train_loader) // self.config['num_prints']
         for batch_idx, batch in enumerate(self.train_loader):
-            input_ids, token_type_ids, attention_mask, labels = batch.values()
-            input_ids, token_type_ids, attention_mask, labels = (input_ids.to(self.device),
-                                                                 token_type_ids.to(self.device),
-                                                                 attention_mask.to(self.device),
-                                                                 labels.to(self.device)
-                                                                 )
-            outputs = self.model(input_ids=input_ids,
-                                 token_type_ids=token_type_ids,
-                                 attention_mask=attention_mask)
+            if isinstance(self.model, BertPENLI):
+                assert self.train_loader.dataset.model_type == 0, "Set dataset's model_type to 0 when using Bert."
+                input_ids, token_type_ids, attention_mask, labels = batch.values()
+                input_ids, token_type_ids, attention_mask, labels = (input_ids.to(self.device),
+                                                                     token_type_ids.to(self.device),
+                                                                     attention_mask.to(self.device),
+                                                                     labels.to(self.device)
+                                                                     )
+                outputs = self.model(input_ids=input_ids,
+                                     token_type_ids=token_type_ids,
+                                     attention_mask=attention_mask)
+            elif isinstance(self.model, T5PENLI):
+                assert self.train_loader.dataset.model_type == 2, "Set dataset's model_type to 2 when using T5."
+                input_ids, attention_mask, labels = batch.values()
+                input_ids, attention_mask, labels = (input_ids.to(self.device),
+                                                     attention_mask.to(self.device),
+                                                     labels.to(self.device)
+                                                     )
+                outputs = self.model(input_ids=input_ids,
+                                     attention_mask=attention_mask,
+                                     labels=labels)
+            else:
+                raise RuntimeError("Cannot match model type with dataset type.")
             p_outputs = torch.permute(outputs, (0, 2, 1))
             self.optimizer.zero_grad()
             # logger.debug(f"Input shape: {input_ids.shape} "
@@ -110,15 +125,26 @@ class Trainer:
                             f"({(100. * batch_idx / len(self.train_loader)):.0f}%)] "
                             f"| Loss: {loss_meter.average():.5f} "
                             f"| Learning Rate: {lr}")
-        metrics = compute_masked_lm_results(predictions, ground_truth, token_types)
-        logger.info(f"Finished training epoch {epoch} "
-                    f"| Loss: {loss_meter.average():.5f} "
-                    f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
-                    f"| Masked LM Accuracy: {metrics['mlm_acc']:.4f} "
-                    )
-        result['inference_acc'] = metrics['inference_acc']
-        result['mlm_acc'] = metrics['mlm_acc']
-        result['details'] = metrics
+        if isinstance(self.model, BertPENLI):
+            metrics = compute_masked_lm_results(predictions, ground_truth, token_types)
+            logger.info(f"Finished training epoch {epoch} "
+                        f"| Loss: {loss_meter.average():.5f} "
+                        f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
+                        f"| Masked LM Accuracy: {metrics['mlm_acc']:.4f} "
+                        )
+            result['inference_acc'] = metrics['inference_acc']
+            result['mlm_acc'] = metrics['mlm_acc']
+            result['details'] = metrics
+        elif isinstance(self.model, T5PENLI):
+            metrics = compute_generative_results(predictions, ground_truth)
+            logger.info(f"Finished training epoch {epoch} "
+                        f"| Loss: {loss_meter.average():.5f} "
+                        f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
+                        f"| Conditional generation Accuracy: {metrics['generation_acc']:.4f} "
+                        )
+            result['inference_acc'] = metrics['inference_acc']
+            result['generation_acc'] = metrics['generation_acc']
+            result['details'] = metrics
         return result
 
     def _eval_epoch(self, epoch):
@@ -129,17 +155,31 @@ class Trainer:
         predictions = []
         token_types = []
         num_batches_per_print = len(self.valid_loader) // self.config['num_prints']
-        for batch_idx, batch in enumerate(self.valid_loader):
-            input_ids, token_type_ids, attention_mask, labels = batch.values()
-            input_ids, token_type_ids, attention_mask, labels = (input_ids.to(self.device),
-                                                                 token_type_ids.to(self.device),
-                                                                 attention_mask.to(self.device),
-                                                                 labels.to(self.device)
-                                                                 )
-            with torch.no_grad():
-                outputs = self.model(input_ids=input_ids,
-                                     token_type_ids=token_type_ids,
-                                     attention_mask=attention_mask)
+        with torch.no_grad():
+            for batch_idx, batch in enumerate(self.valid_loader):
+                if isinstance(self.model, BertPENLI):
+                    assert self.valid_loader.dataset.model_type == 0, "Set dataset's model_type to 0 when using Bert."
+                    input_ids, token_type_ids, attention_mask, labels = batch.values()
+                    input_ids, token_type_ids, attention_mask, labels = (input_ids.to(self.device),
+                                                                         token_type_ids.to(self.device),
+                                                                         attention_mask.to(self.device),
+                                                                         labels.to(self.device)
+                                                                         )
+                    outputs = self.model(input_ids=input_ids,
+                                         token_type_ids=token_type_ids,
+                                         attention_mask=attention_mask)
+                elif isinstance(self.model, T5PENLI):
+                    assert self.valid_loader.dataset.model_type == 2, "Set dataset's model_type to 2 when using T5."
+                    input_ids, attention_mask, labels = batch.values()
+                    input_ids, attention_mask, labels = (input_ids.to(self.device),
+                                                         attention_mask.to(self.device),
+                                                         labels.to(self.device)
+                                                         )
+                    outputs = self.model(input_ids=input_ids,
+                                         attention_mask=attention_mask,
+                                         labels=labels)
+                else:
+                    raise RuntimeError("Cannot match model type with dataset type.")
                 p_outputs = torch.permute(outputs, (0, 2, 1))
                 loss = self.criterion(p_outputs, labels)
                 pred = torch.argmax(outputs, dim=-1)
@@ -155,15 +195,26 @@ class Trainer:
                                 f"({(100. * batch_idx / len(self.valid_loader)):.0f}%)] "
                                 f"| Loss: {loss_meter.average():.5f} "
                                 )
-        metrics = compute_masked_lm_results(predictions, ground_truth, token_types)
-        logger.info(f"Finished evaluating epoch {epoch} "
-                    f"| Loss: {loss_meter.average():.5f} "
-                    f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
-                    f"| Masked LM Accuracy: {metrics['mlm_acc']:.4f} "
-                    )
-        result['inference_acc'] = metrics['inference_acc']
-        result['mlm_acc'] = metrics['mlm_acc']
-        result['details'] = metrics
+        if isinstance(self.model, BertPENLI):
+            metrics = compute_masked_lm_results(predictions, ground_truth, token_types)
+            logger.info(f"Finished training epoch {epoch} "
+                        f"| Loss: {loss_meter.average():.5f} "
+                        f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
+                        f"| Masked LM Accuracy: {metrics['mlm_acc']:.4f} "
+                        )
+            result['inference_acc'] = metrics['inference_acc']
+            result['mlm_acc'] = metrics['mlm_acc']
+            result['details'] = metrics
+        elif isinstance(self.model, T5PENLI):
+            metrics = compute_generative_results(predictions, ground_truth)
+            logger.info(f"Finished training epoch {epoch} "
+                        f"| Loss: {loss_meter.average():.5f} "
+                        f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
+                        f"| Conditional generation Accuracy: {metrics['generation_acc']:.4f} "
+                        )
+            result['inference_acc'] = metrics['inference_acc']
+            result['generation_acc'] = metrics['generation_acc']
+            result['details'] = metrics
         return result
 
     def _load_model(self):

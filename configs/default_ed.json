@@ -1,40 +1,43 @@
 {
-  "name": "default",
+  "name": "default_ed",
   "n_gpu": 1,
   "save_dir": "./logs/",
-  "num_epochs": 5,
+  "num_epochs": 8,
   "num_prints": 10,
-  "freeze_bert": false,
+  "freeze_plm": false,
   "grad_clip": 1.0,
   "model": {
-    "type": "BertPENLI",
+    "type": "T5PENLI",
     "kwargs": {
-      "pretrained": "bert-base-uncased"
+      "pretrained": "google/flan-t5-base"
     }
   },
   "train_loader": {
-    "type": "token_classification_data_loader",
+    "type": "create_nli_data_loader",
     "kwargs": {
       "file_path": "./datasets/e-SNLI/esnli_train_1.csv",
       "max_seq_length": 512,
+      "model_type": 2,
       "batch_size": 16,
       "shuffle": true
     }
   },
   "valid_loader": {
-    "type": "token_classification_data_loader",
+    "type": "create_nli_data_loader",
     "kwargs": {
       "file_path": "./datasets/e-SNLI/esnli_dev.csv",
       "max_seq_length": 512,
+      "model_type": 2,
       "batch_size": 16,
       "shuffle": false
     }
   },
   "test_loader": {
-    "type": "token_classification_data_loader",
+    "type": "create_nli_data_loader",
     "kwargs": {
       "file_path": "./datasets/e-SNLI/esnli_test.csv",
       "max_seq_length": 512,
+      "model_type": 2,
       "batch_size": 16,
       "shuffle": false
     }
