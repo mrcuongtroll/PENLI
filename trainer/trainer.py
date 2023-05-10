@@ -87,6 +87,7 @@ class Trainer:
                 outputs = self.model(input_ids=input_ids,
                                      token_type_ids=token_type_ids,
                                      attention_mask=attention_mask)
+                token_types.extend(token_type_ids.detach().cpu().numpy())
             elif isinstance(self.model, T5PENLI):
                 assert self.train_loader.dataset.model_type == 2, "Set dataset's model_type to 2 when using T5."
                 input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['labels']
@@ -115,7 +116,6 @@ class Trainer:
             pred = torch.argmax(outputs, dim=-1)
             predictions.extend(pred.detach().cpu().numpy())
             ground_truth.extend(labels.detach().cpu().numpy())
-            token_types.extend(token_type_ids.detach().cpu().numpy())
             loss_meter.update(loss.item())
             result = {"loss": loss_meter.average(),
                       "lr": lr}
@@ -168,6 +168,7 @@ class Trainer:
                     outputs = self.model(input_ids=input_ids,
                                          token_type_ids=token_type_ids,
                                          attention_mask=attention_mask)
+                    token_types.extend(token_type_ids.detach().cpu().numpy())
                 elif isinstance(self.model, T5PENLI):
                     assert self.valid_loader.dataset.model_type == 2, "Set dataset's model_type to 2 when using T5."
                     input_ids, attention_mask, labels = batch.values()
@@ -185,7 +186,6 @@ class Trainer:
                 pred = torch.argmax(outputs, dim=-1)
                 predictions.extend(pred.detach().cpu().numpy())
                 ground_truth.extend(labels.detach().cpu().numpy())
-                token_types.extend(token_type_ids.detach().cpu().numpy())
                 loss_meter.update(loss.item())
                 result = {"loss": loss_meter.average()
                           }
