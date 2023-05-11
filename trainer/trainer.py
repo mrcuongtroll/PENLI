@@ -171,7 +171,7 @@ class Trainer:
                     token_types.extend(token_type_ids.detach().cpu().numpy())
                 elif isinstance(self.model, T5PENLI):
                     assert self.valid_loader.dataset.model_type == 2, "Set dataset's model_type to 2 when using T5."
-                    input_ids, attention_mask, labels = batch.values()
+                    input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['labels']
                     input_ids, attention_mask, labels = (input_ids.to(self.device),
                                                          attention_mask.to(self.device),
                                                          labels.to(self.device)
