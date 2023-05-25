@@ -47,7 +47,7 @@ def main(args):
         model.load_state_dict(checkpoint['state_dict'])
         model.to(device)
         logger.info(f"-----> Done.")
-    test_loader = config.init_obj(data_loader, 'test_loader', tokenizer=model.tokenizer, use_explanation=False)
+    test_loader = config.init_obj(data_loader, 'test_loader', tokenizer=model.tokenizer, use_explanation=True)
     criterion = config.init_obj(nn, "loss")
     results = evaluate_model(model=model,
                              data_loader=test_loader,
