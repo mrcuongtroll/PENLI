@@ -55,10 +55,11 @@ class T5PENLI(nn.Module):
         self.t5 = T5ForConditionalGeneration.from_pretrained(pretrained)
         self.softmax = nn.LogSoftmax(dim=-1)
 
-    def forward(self, input_ids, attention_mask, labels):
+    def forward(self, input_ids, attention_mask, labels=None, **kwargs):
         t5_outputs = self.t5(input_ids=input_ids,
                              attention_mask=attention_mask,
-                             labels=labels)
+                             labels=labels,
+                             **kwargs)
         decoded_logits = t5_outputs.logits
         output = self.softmax(decoded_logits)
         return output
@@ -70,3 +71,10 @@ class T5PENLI(nn.Module):
 
     def generate(self, **kwargs):
         return self.t5.generate(**kwargs)
+
+    def save_plm(self, path):
+        self.t5.save_pretrained(path)
+
+    def load_plm(self, path):
+        self.t5.from_pretrained(path)
+        self.tokenizer.from_pretrained(path)
