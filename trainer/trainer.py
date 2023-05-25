@@ -78,7 +78,9 @@ class Trainer:
         for batch_idx, batch in enumerate(self.train_loader):
             if isinstance(self.model, BertPENLI):
                 assert self.train_loader.dataset.model_type == 0, "Set dataset's model_type to 0 when using Bert."
-                input_ids, token_type_ids, attention_mask, labels = batch.values()
+                input_ids, token_type_ids, attention_mask, labels = batch['input_ids'], \
+                                                                    batch['token_type_ids'], batch['attention_mask'], \
+                                                                    batch['labels']
                 input_ids, token_type_ids, attention_mask, labels = (input_ids.to(self.device),
                                                                      token_type_ids.to(self.device),
                                                                      attention_mask.to(self.device),
@@ -159,7 +161,8 @@ class Trainer:
             for batch_idx, batch in enumerate(self.valid_loader):
                 if isinstance(self.model, BertPENLI):
                     assert self.valid_loader.dataset.model_type == 0, "Set dataset's model_type to 0 when using Bert."
-                    input_ids, token_type_ids, attention_mask, labels = batch.values()
+                    input_ids, token_type_ids, attention_mask, labels = batch['input_ids'], \
+                                batch['token_type_ids'], batch['attention_mask'], batch['labels']
                     input_ids, token_type_ids, attention_mask, labels = (input_ids.to(self.device),
                                                                          token_type_ids.to(self.device),
                                                                          attention_mask.to(self.device),
@@ -213,7 +216,7 @@ class Trainer:
                         f"| Conditional generation Accuracy: {metrics['generation_acc']:.4f} "
                         )
             result['inference_acc'] = metrics['inference_acc']
-            result['generation_acc'] = metrics['generation_acc']
+            result['generative_acc'] = metrics['generative_acc']
             result['details'] = metrics
         return result
 

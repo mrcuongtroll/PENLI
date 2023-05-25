@@ -1,9 +1,9 @@
 import logging
-from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
-import json
+from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 import os
 from transformers import PreTrainedTokenizer, DataCollatorForTokenClassification, DataCollatorForSeq2Seq
+from .data_collator import GeneralDataCollator
 from definitions import *
 from typing import Tuple
 
@@ -19,26 +19,24 @@ class ESNLIDataset(Dataset):
                  file_path: str = None,
                  max_seq_length: int = 512,
                  model_type: int = 0,
-                 prompt_reserve_size: int = 20
+                 use_explanation: bool = False
                  ):
         """
         :param file_path: (Type: str) Path to the file containing the data. It must be in csv format.
         :param tokenizer: (Type: PreTrainedTokenizer) The tokenizer object used to encode the data.
         :param max_seq_length: (Type: int) The maximum number of tokens for each sentence.
         :param model_type: (Type: int): 0: MLM, 1: Autoregressive Decoder, 2: Encoder-Decoder.
-        :param prompt_reserve_size: (Type: int) Number of tokens to reserve for prompts. These will be treated as mask
-                                    tokens. This number should fit the prompt size of the model. i.e. the total size of
-                                    general prompt and language specific prompt.
+        :param use_explanation: (Type: bool) Whether to return explanations or not.
         """
         super(ESNLIDataset, self).__init__()
         self.data = pd.read_csv(file_path)
         self.len = len(self.data)
         self.tokenizer = tokenizer
-        self.prompt_reserve_size = prompt_reserve_size
         self.max_seq_length = max_seq_length
         assert model_type in (0, 1, 2), f"Invalid model type: {model_type}. Please choose from " \
                                         f"(0: Masked Language Model, 1: Autoregressive Decoder, 2: Encoder-Decoder)."
         self.model_type = model_type
+        self.use_explanation = use_explanation
 
     def __len__(self):
         return self.len
@@ -75,21 +73,38 @@ class ESNLIDataset(Dataset):
                                                 )
                           )
             labels = [ignored_token_id] + labels + [ignored_token_id]
+
             encodings = encodings[:min(len(encodings), self.max_seq_length)]
             labels = labels[:min(len(labels), self.max_seq_length)]
             token_type_ids = token_type_ids[:min(len(token_type_ids), self.max_seq_length)]
-            return {'input_ids': encodings,
-                    'token_type_ids': token_type_ids,
-                    'labels': labels}
+            if not self.use_explanation:
+                return {'input_ids': encodings,
+                        'token_type_ids': token_type_ids,
+                        'labels': labels}
+            else:
+                encoded_explanation = self.tokenizer.encode(explanation)
+                encoded_explanation = encoded_explanation[:min(len(encoded_explanation), self.max_seq_length)]
+                return {'input_ids': encodings,
+                        'token_type_ids': token_type_ids,
+                        'explanation': encoded_explanation,
+                        'labels': labels}
         elif self.model_type == 2:
             raw_inputs = f"Sentence 1: {premise}. Sentence 2: {hypothesis}. " \
                          f"Given sentence 1, is sentence 2 true, neutral, or false?"
-            mapped_label = f"{GENERATIVE_LABEL_MAPPING[label]}"
             encodings = self.tokenizer.encode(raw_inputs)
+            mapped_label = f"{GENERATIVE_LABEL_MAPPING[label]}"
             labels = self.tokenizer.encode(mapped_label)
             encodings = encodings[:min(len(encodings), self.max_seq_length)]
-            return {'input_ids': encodings,
-                    'labels': labels}
+            labels = labels[:min(len(labels), self.max_seq_length)]
+            if not self.use_explanation:
+                return {'input_ids': encodings,
+                        'labels': labels}
+            else:
+                encoded_explanation = self.tokenizer.encode(explanation)
+                encoded_explanation = encoded_explanation[:min(len(encoded_explanation), self.max_seq_length)]
+                return {'input_ids': encodings,
+                        'explanation': encoded_explanation,
+                        'labels': labels}
         else:
             raise RuntimeError(f"model_type 1 has not been implemented.")
 
@@ -99,16 +114,19 @@ def create_nli_data_loader(tokenizer: PreTrainedTokenizer,
                            file_path: str = None,
                            max_seq_length: int = 512,
                            model_type: int = 0,
+                           use_explanation: bool = False,
                            **kwargs):
     dataset = ESNLIDataset(tokenizer=tokenizer,
                            file_path=file_path,
                            max_seq_length=max_seq_length,
-                           model_type=model_type)
-    if model_type == 0:
-        collator = DataCollatorForTokenClassification(tokenizer, padding=True)
-    elif model_type == 2:
-        collator = DataCollatorForSeq2Seq(tokenizer, padding=True)
-    else:
-        raise RuntimeError(f"Invalid model type: {model_type}")
+                           model_type=model_type,
+                           use_explanation=use_explanation)
+    # if model_type == 0:
+    #     collator = DataCollatorForTokenClassification(tokenizer, padding="max_length")
+    # elif model_type == 2:
+    #     collator = DataCollatorForSeq2Seq(tokenizer, padding=True)
+    # else:
+    #     raise RuntimeError(f"Invalid model type: {model_type}")
+    collator = GeneralDataCollator(tokenizer=tokenizer)
     data_loader = DataLoader(dataset, collate_fn=collator, **kwargs)
     return data_loader

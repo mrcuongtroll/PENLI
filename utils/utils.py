@@ -1,9 +1,13 @@
 from prettytable import PrettyTable
 import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+from torch.optim import Optimizer
 import numpy as np
 import logging
-import json
 from typing import Tuple, List
+from model.model import *
+from utils.config import ConfigParser
 from definitions import *
 
 
@@ -112,5 +116,83 @@ def compute_generative_results(predictions: List[np.ndarray],
         if predictions[i][0] == ground_truth[i][0]:
             num_inference_correct += 1
     inference_acc = num_inference_correct / len(ground_truth)
-    generation_acc = num_tokens_correct / num_tokens_total
-    return {'inference_acc': inference_acc, 'generation_acc': generation_acc}
+    generative_acc = num_tokens_correct / num_tokens_total
+    return {'inference_acc': inference_acc, 'generative_acc': generative_acc}
+
+
+def evaluate_model(model: nn.Module,
+                   data_loader: DataLoader,
+                   criterion: Optimizer,
+                   config: ConfigParser,
+                   use_explanation: bool = False,
+                   device: str = 'cuda'):
+    model.to(device)
+    model.eval()
+    result = None
+    loss_meter = AverageMeter()
+    ground_truth = []
+    predictions = []
+    token_types = []
+    num_batches_per_print = len(data_loader) // config['num_prints']
+    with torch.no_grad():
+        for batch_idx, batch in enumerate(data_loader):
+            if isinstance(model, BertPENLI):
+                assert data_loader.dataset.model_type == 0, "Set dataset's model_type to 0 when using Bert."
+                input_ids, token_type_ids, attention_mask, labels = batch['input_ids'], \
+                            batch['token_type_ids'], batch['attention_mask'], batch['labels']
+                input_ids, token_type_ids, attention_mask, labels = (input_ids.to(device),
+                                                                     token_type_ids.to(device),
+                                                                     attention_mask.to(device),
+                                                                     labels.to(device)
+                                                                     )
+                if use_explanation:
+                    explanation, explanation_mask = batch['explanation'].to(device),\
+                                                    batch['explanation_mask'].to(device)
+                    input_ids = torch.cat([input_ids, explanation], dim=-1)
+                    attention_mask = torch.cat([attention_mask, explanation_mask], dim=-1)
+                    token_type_ids = torch.cat([token_type_ids, torch.ones(explanation.shape, dtype=torch.long)],
+                                               dim=-1)
+                outputs = model(input_ids=input_ids,
+                                token_type_ids=token_type_ids,
+                                attention_mask=attention_mask)
+                token_types.extend(token_type_ids.detach().cpu().numpy())
+            elif isinstance(model, T5PENLI):
+                assert data_loader.dataset.model_type == 2, "Set dataset's model_type to 2 when using T5."
+                input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['labels']
+                input_ids, attention_mask, labels = (input_ids.to(device),
+                                                     attention_mask.to(device),
+                                                     labels.to(device)
+                                                     )
+                if use_explanation:
+                    explanation, explanation_mask = batch['explanation'].to(device),\
+                                                    batch['explanation_mask'].to(device)
+                    input_ids = torch.cat([input_ids, explanation], dim=-1)
+                    attention_mask = torch.cat([attention_mask, explanation_mask], dim=-1)
+                outputs = model(input_ids=input_ids,
+                                attention_mask=attention_mask,
+                                labels=labels)
+            else:
+                raise RuntimeError("Cannot match model type with dataset type.")
+            p_outputs = torch.permute(outputs, (0, 2, 1))
+            loss = criterion(p_outputs, labels)
+            pred = torch.argmax(outputs, dim=-1)
+            predictions.extend(pred.detach().cpu().numpy())
+            ground_truth.extend(labels.detach().cpu().numpy())
+            loss_meter.update(loss.item())
+            result = {"loss": loss_meter.average()
+                      }
+            if (batch_idx + 1) % num_batches_per_print == 0:
+                logger.info(f"Evaluating "
+                            f"[{batch_idx * data_loader.batch_size}/{len(data_loader.dataset)} "
+                            f"({(100. * batch_idx / len(data_loader)):.0f}%)] "
+                            f"| Loss: {loss_meter.average():.5f} "
+                            )
+    if isinstance(model, BertPENLI):
+        metrics = compute_masked_lm_results(predictions, ground_truth, token_types)
+        result['inference_acc'] = metrics['inference_acc']
+        result['mlm_acc'] = metrics['mlm_acc']
+    elif isinstance(model, T5PENLI):
+        metrics = compute_generative_results(predictions, ground_truth)
+        result['inference_acc'] = metrics['inference_acc']
+        result['generative_acc'] = metrics['generative_acc']
+    return result
