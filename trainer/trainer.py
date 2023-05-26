@@ -231,5 +231,3 @@ class Trainer:
         self.best_acc = checkpoint['best_acc']
         self.current_epoch = checkpoint['epoch']
         logger.info(f"------> Loaded checkpoint from {checkpoint_path}")
-
-# TODO: docstrings

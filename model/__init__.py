@@ -1,2 +1,2 @@
 from .model import *
-# from .rl import *
+from .rl import *

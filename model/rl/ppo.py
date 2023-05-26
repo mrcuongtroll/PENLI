@@ -5,13 +5,15 @@ from ..model import *
 import numpy as np
 from torch.distributions import Categorical
 from torch import optim
+import torch.nn as nn
 import torch.nn.functional as F
+from .actor_critic import *
 
 
-class ICMAgent(object):
+class PPOAgent(object):
     def __init__(
             self,
-            input_size,
+            a2c_module: A2C,
             output_size,
             num_env,
             num_step,
@@ -25,12 +27,11 @@ class ICMAgent(object):
             ppo_eps=0.1,
             eta=0.01,
             use_gae=True,
-            use_cuda=False,
+            device='cuda',
             use_noisy_net=False):
-        self.model = ICMCnnActorCriticNetwork(input_size, output_size, use_noisy_net)
+        self.a2c_module = a2c_module
         self.num_env = num_env
         self.output_size = output_size
-        self.input_size = input_size
         self.num_step = num_step
         self.gamma = gamma
         self.lam = lam
@@ -41,19 +42,17 @@ class ICMAgent(object):
         self.eta = eta
         self.ppo_eps = ppo_eps
         self.clip_grad_norm = clip_grad_norm
-        self.device = torch.device('cuda' if use_cuda else 'cpu')
-
-        self.icm = ICMModel(input_size, output_size)
-        self.optimizer = optim.Adam(list(self.model.parameters()) + list(self.icm.parameters()),
+        self.device = torch.device(device)
+        self.optimizer = optim.Adam(list(self.a2c_module.parameters()) + list(self.a2c_module.parameters()),
                                     lr=learning_rate)
-        self.icm = self.icm.to(self.device)
+        self.icm = self.a2c_module.to(self.device)
 
-        self.model = self.model.to(self.device)
+        self.model = self.a2c_module.to(self.device)
 
     def get_action(self, state):
         state = torch.Tensor(state).to(self.device)
         state = state.float()
-        policy, value = self.model(state)
+        policy, value = self.a2c_module(state)
         action_prob = F.softmax(policy, dim=-1).data.cpu().numpy()
 
         action = self.random_choice_prob_index(action_prob)
@@ -64,23 +63,6 @@ class ICMAgent(object):
     def random_choice_prob_index(p, axis=1):
         r = np.expand_dims(np.random.rand(p.shape[1 - axis]), axis=axis)
         return (p.cumsum(axis=axis) > r).argmax(axis=axis)
-
-    def compute_intrinsic_reward(self, state, next_state, action):
-        state = torch.FloatTensor(state).to(self.device)
-        next_state = torch.FloatTensor(next_state).to(self.device)
-        action = torch.LongTensor(action).to(self.device)
-
-        action_onehot = torch.FloatTensor(
-            len(action), self.output_size).to(
-            self.device)
-        action_onehot.zero_()
-        action_onehot.scatter_(1, action.view(len(action), -1), 1)
-
-        real_next_state_feature, pred_next_state_feature, pred_action = self.icm(
-            [state, next_state, action_onehot])
-        intrinsic_reward = self.eta * (real_next_state_feature - pred_next_state_feature).pow(2).sum(1) / 2
-
-        return intrinsic_reward.data.cpu().numpy()
 
     def train_model(self, s_batch, next_s_batch, target_batch, y_batch, adv_batch, old_policy):
         s_batch = torch.FloatTensor(s_batch).to(self.device)
