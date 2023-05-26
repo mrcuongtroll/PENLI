@@ -2,10 +2,23 @@
   "name": "default_ed",
   "n_gpu": 1,
   "save_dir": "./logs/",
-  "num_epochs": 8,
+  "num_epochs": 5,
   "num_prints": 10,
   "freeze_plm": false,
   "grad_clip": 1.0,
+  "rl": {
+    "freeze_plm": false,
+    "num_epochs": 3,
+    "grad_clip": 0.5,
+    "num_prints": 10,
+    "type": "A2C",
+    "kwargs": {
+      "critic_hidden_size": 768,
+      "gamma": 0.8,
+      "critic_coef": 0.5,
+      "entropy_coef": 0.01
+    }
+  },
   "model": {
     "type": "T5PENLI",
     "kwargs": {

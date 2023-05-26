@@ -18,7 +18,7 @@ import numpy as np
 class A2C(nn.Module):
 
     def __init__(self, model: nn.Module, critic_hidden_size: int,
-                 gamma=0.99, critic_coef=1, entropy_coef=1,
+                 gamma=0.99, critic_coef=0.5, entropy_coef=0.01,
                  device='cuda'):
         """
         :param model: A model, which will act as both the actor and the critic.
@@ -69,8 +69,6 @@ class A2C(nn.Module):
         generated token.
         :return: expected reward, critic eval, action log prob, action entropy, total_reward
         """
-        rewards = []
-
         # Run episode and save information
         input_ids = batch['input_ids'].to(self.device)
         attention_mask = batch['attention_mask'].to(self.device)
@@ -92,11 +90,12 @@ class A2C(nn.Module):
         action_lp_vals = torch.gather(action_logits, 2, action)
         entropy = dist.entropy().mean()
         # Get the actual rewards. The model will be rewarded 1 for each correct prediction and 0 otherwise.
-        prediction = torch.argmax(action_logits.detach(), dim=-1, keepdim=True)
+        # prediction = torch.argmax(action_logits.detach(), dim=-1, keepdim=True)
         # rewards has the same shape as action_lp_vals and critic_vals
-        rewards = (prediction == labels.detach().unsqueeze(-1)).float()
+        # rewards = (prediction == labels.detach().unsqueeze(-1)).float()
+        rewards = (action.detach() == labels.detach().unsqueeze(-1)).float()
         # Sum the reward along the step (token positions) dimension.
-        total_reward = torch.sum(rewards, dim=-2)   # TODO: keepdim or squeeze?
+        total_rewards = torch.sum(rewards, dim=-2).squeeze()   # TODO: keepdim or squeeze?
 
         # Convert reward array to expected return and standardize
         for t_i in range(rewards.shape[-2]):
@@ -104,43 +103,51 @@ class A2C(nn.Module):
                 rewards[:, t_i] += rewards[:, t] * (self.gamma ** (t - t_i))
         # Standardize rewards   # TODO: whether or not to use this
         # rewards = (rewards - torch.mean(rewards, dim=-2)) / (torch.std(rewards, dim=-2) + .000000000001)
-        return rewards, critic_vals, action_lp_vals, entropy, total_reward
+        return rewards, critic_vals, action_lp_vals, entropy, total_rewards
 
-    def test_env_episode(self, render=True):
+    def test_env_episode(self, batch):
         """
         Run an episode of the environment in test mode
-        :param render: Toggle rendering of environment :bool
+        :param batch: A batch of data
         :return: Total reward :int
         """
-        observation = self.env.reset()
-        rewards = []
-        done = False
-        while not done:
+        # Run episode and save information
+        input_ids = batch['input_ids'].to(self.device)
+        attention_mask = batch['attention_mask'].to(self.device)
+        explanation = batch['explanation'].to(self.device)
+        explanation_mask = batch['explanation_mask'].to(self.device)
+        labels = batch['labels'].to(self.device)
+        with torch.no_grad():
+            # Get action from actor and value from critic
+            action_logits, critic_vals = self.forward(input_ids=input_ids,
+                                                      attention_mask=attention_mask,
+                                                      explanation=explanation,
+                                                      explanation_mask=explanation_mask,
+                                                      labels=labels
+                                                      )
+            dist = Categorical(logits=action_logits)
+            action = dist.sample()
+            action = action.unsqueeze(-1)
+            # Get the actual rewards. The model will be rewarded 1 for each correct prediction and 0 otherwise.
+            rewards = (action == labels.unsqueeze(-1)).float()
+            # Sum the reward along the step (token positions) dimension.
+            total_rewards = torch.sum(rewards, dim=-2).squeeze()  # TODO: keepdim or squeeze?
+            return total_rewards
 
-            if render:
-                self.env.render()
-
-            observation = torch.from_numpy(observation).double()
-
-            # Get action from actor
-            action_logits = self.actor(observation)
-            action = Categorical(logits=action_logits).sample()
-
-            observation, reward, done, info = self.env.step(action.item())
-            rewards.append(reward)
-
-        return sum(rewards)
-
-    def compute_loss(self, action_p_vals, G, V, critic_loss=nn.MSELoss()):
+    def compute_loss(self, action_p_vals, G, V, entropy, critic_loss_fn=nn.MSELoss()):
         """
         Actor Advantage Loss, where advantage = G - V
         Critic Loss, using mean squared error
-        :param critic_loss: loss function for critic   :Pytorch loss module
+        :param critic_loss_fn: loss function for critic   :Pytorch loss module
         :param action_p_vals: Action Log Probabilities  :Tensor
         :param G: Actual Expected Returns   :Tensor
         :param V: Predicted Expected Returns    :Tensor
+        :param entropy: Entropy of the action distribution
         :return: Actor loss tensor, Critic loss tensor  :Tensor
         """
         assert action_p_vals.shape == G.shape == V.shape
         advantage = G - V.detach()
-        return -(action_p_vals * advantage.detach()).mean(), self.critic_coef*critic_loss(G, V)
+        actor_loss = -(action_p_vals * advantage.detach()).mean()
+        critic_loss = self.critic_coef * critic_loss_fn(G, V)
+        entropy = self.entropy_coef * entropy
+        return actor_loss + critic_loss - entropy
