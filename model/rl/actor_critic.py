@@ -34,7 +34,7 @@ class A2C(nn.Module):
         self.entropy_coef = entropy_coef
         self.model = model
         self.critic_head = nn.Sequential(
-            nn.Linear(model.model.config.vocab_size * 2, critic_hidden_size),
+            nn.Linear(model.t5.config.vocab_size * 2, critic_hidden_size),
             nn.ReLU(),
             nn.Linear(critic_hidden_size, 1)
         )
