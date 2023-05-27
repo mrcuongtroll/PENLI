@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import logging
+import itertools
 from utils.utils import AverageMeter, compute_masked_lm_results, compute_generative_results
 from utils.config import ConfigParser
 from model.model import BertPENLI, T5PENLI
@@ -32,6 +33,7 @@ class RLTrainer:
         self.lr_scheduler = lr_scheduler
         self.config = config
         self.current_epoch = 0
+        self.current_batch_idx = 0
         self.best_reward = 0
         if self.config['rl']['freeze_plm']:
             self.module.model.freeze_plm(freeze=True)
@@ -40,14 +42,17 @@ class RLTrainer:
         with torch.autograd.set_detect_anomaly(True):
             if resume:
                 self._load_model()
-                logger.info(f"------> Resume training from epoch {self.current_epoch}...")
+                logger.info(f"------> Resume training from epoch {self.current_epoch}, "
+                            f"batch_idx {self.current_batch_idx}...")
             else:
                 logger.info(f"------> Begin training...")
             for epoch in range(self.current_epoch, self.config['rl']['num_epochs']):
                 logger.info(f"------> Current epoch: {epoch}")
+                self.train_loader.sampler.set_epoch(epoch)
                 train_result = self._train_epoch(epoch)
 
                 if self.valid_loader is not None:
+                    self.valid_loader.sampler.set_epoch(epoch)
                     valid_result = self._eval_epoch(epoch)
                     valid_loss = valid_result['loss']
                     valid_reward = valid_loss['reward']
@@ -56,6 +61,7 @@ class RLTrainer:
                     valid_result['optimizer'] = self.optimizer.state_dict()
                     valid_result['lr_scheduler'] = self.lr_scheduler.state_dict() if self.lr_scheduler else None
                     valid_result['epoch'] = epoch + 1
+                    valid_result['batch_idx'] = 0
                     if valid_reward > self.best_reward:
                         self.best_reward = valid_reward
                         logger.info(f"New best valid reward found: {valid_reward}. Saving checkpoint...")
@@ -73,7 +79,7 @@ class RLTrainer:
         reward_meter = AverageMeter()
         loss_meter = AverageMeter()
         num_batches_per_print = len(self.train_loader) // self.config['rl']['num_prints']
-        for batch_idx, batch in enumerate(self.train_loader):
+        for batch_idx, batch in enumerate(itertools.islice(self.train_loader, self.current_batch_idx, None)):
             rewards, critic_vals, action_lp_vals, entropy, total_rewards = self.module.train_env_episode(batch)
             loss = self.module.compute_loss(action_p_vals=action_lp_vals,
                                             G=rewards,
@@ -100,6 +106,17 @@ class RLTrainer:
                             f"| Loss: {loss_meter.average():.5f} "
                             f"| Reward: {reward_meter.average():.4f}"
                             f"| Learning Rate: {lr}")
+                # Save checkpoint
+                logger.info(f"------> Saving checkpoint...")
+                result['state_dict'] = self.module.model.state_dict()
+                result['critic_state_dict'] = self.module.critic_head.state_dict()
+                result['optimizer'] = self.optimizer.state_dict()
+                result['lr_scheduler'] = self.lr_scheduler.state_dict() if self.lr_scheduler else None
+                result['epoch'] = epoch
+                result['batch_idx'] = self.current_batch_idx + batch_idx + 1
+                result['best_reward'] = self.best_reward
+                torch.save(result, os.path.join(self.config['save_dir'], 'rl', 'checkpoint_last.pt'))
+                logger.info("------> Done.")
         logger.info(f"Finished training epoch {epoch} "
                     f"| Loss: {loss_meter.average():.5f} "
                     f"| Reward: {reward_meter.average():.4f}"
@@ -150,4 +167,5 @@ class RLTrainer:
             self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
         self.best_reward = checkpoint['best_reward']
         self.current_epoch = checkpoint['epoch']
+        self.current_batch_idx = checkpoint['batch_idx']
         logger.info(f"------> Loaded checkpoint from {checkpoint_path}")

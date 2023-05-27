@@ -28,6 +28,7 @@ sys.excepthook = handle_exception
 
 
 def main(args):
+    torch.manual_seed(args.seed)
     config = ConfigParser(args.config)
     config.init_obj(logger_module, "logging")
     if not args.device:
@@ -77,5 +78,6 @@ if __name__ == '__main__':
                         choices=['cuda', 'cpu'],
                         help='Device to train the model on (cuda/cpu)')
     parser.add_argument('--best_ckpt', default=False, action='store_true', help='use the best checkpoint or the latest')
+    parser.add_argument("--seed", default=69420, type=int, help='random seed')
     args = parser.parse_args()
     main(args)
