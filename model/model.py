@@ -25,6 +25,7 @@ class BertPENLI(nn.Module):
         # Load pretrained model
         self.tokenizer = BertTokenizer.from_pretrained(pretrained)
         self.bert = BertForMaskedLM.from_pretrained(pretrained)
+        self.config = self.bert.config
         self.softmax = nn.LogSoftmax(dim=-1)
 
     def forward(self, input_ids, token_type_ids, attention_mask):
@@ -40,6 +41,13 @@ class BertPENLI(nn.Module):
             if "prompt" not in name:
                 param.requires_grad = not freeze
 
+    def save_plm(self, path):
+        self.bert.save_pretrained(path)
+
+    def load_plm(self, path):
+        self.bert.from_pretrained(path)
+        self.tokenizer.from_pretrained(path)
+
 
 class T5PENLI(nn.Module):
 
@@ -53,6 +61,7 @@ class T5PENLI(nn.Module):
         super(T5PENLI, self).__init__()
         self.tokenizer = T5Tokenizer.from_pretrained(pretrained)
         self.t5 = T5ForConditionalGeneration.from_pretrained(pretrained)
+        self.config = self.t5.config
         self.softmax = nn.LogSoftmax(dim=-1)
 
     def forward(self, input_ids, attention_mask, labels=None, **kwargs):
