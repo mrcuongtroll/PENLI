@@ -32,7 +32,7 @@
       "max_seq_length": 512,
       "model_type": 2,
       "batch_size": 8,
-      "shuffle": true
+      "shuffle": false
     }
   },
   "valid_loader": {
