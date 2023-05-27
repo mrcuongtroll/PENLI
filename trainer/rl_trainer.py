@@ -62,6 +62,7 @@ class RLTrainer:
                     valid_result['lr_scheduler'] = self.lr_scheduler.state_dict() if self.lr_scheduler else None
                     valid_result['epoch'] = epoch + 1
                     valid_result['batch_idx'] = 0
+                    valid_result['train_sampler'] = self.train_loader.sampler.get_state()
                     if valid_reward > self.best_reward:
                         self.best_reward = valid_reward
                         logger.info(f"New best valid reward found: {valid_reward}. Saving checkpoint...")
@@ -115,6 +116,7 @@ class RLTrainer:
                 result['epoch'] = epoch
                 result['batch_idx'] = self.current_batch_idx + batch_idx + 1
                 result['best_reward'] = self.best_reward
+                result['train_sampler'] = self.train_loader.sampler.get_state()
                 torch.save(result, os.path.join(self.config['save_dir'], 'rl', 'checkpoint_last.pt'))
                 logger.info("------> Done.")
         logger.info(f"Finished training epoch {epoch} "
@@ -168,4 +170,5 @@ class RLTrainer:
         self.best_reward = checkpoint['best_reward']
         self.current_epoch = checkpoint['epoch']
         self.current_batch_idx = checkpoint['batch_idx']
+        self.train_loader.sampler.set_state(checkpoint['train_sampler'])
         logger.info(f"------> Loaded checkpoint from {checkpoint_path}")

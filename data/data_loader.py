@@ -1,5 +1,6 @@
 import logging
-from torch.utils.data import Dataset, DataLoader
+import torch
+from torch.utils.data import Dataset, DataLoader, Sampler
 import pandas as pd
 import os
 from transformers import PreTrainedTokenizer, DataCollatorForTokenClassification, DataCollatorForSeq2Seq
@@ -109,12 +110,61 @@ class ESNLIDataset(Dataset):
             raise RuntimeError(f"model_type 1 has not been implemented.")
 
 
+class ResumableRandomSampler(Sampler):
+    r"""Samples elements randomly. If without replacement, then sample from a shuffled dataset.
+    If with replacement, then user can specify :attr:`num_samples` to draw.
+    Arguments:
+        data_source (Dataset): dataset to sample from
+        replacement (bool): samples are drawn on-demand with replacement if ``True``, default=``False``
+        num_samples (int): number of samples to draw, default=`len(dataset)`. This argument
+            is supposed to be specified only when `replacement` is ``True``.
+        generator (Generator): Generator used in sampling.
+    """
+
+    # data_source: Sized
+    # replacement: bool
+
+    def __init__(self, data_source, seed=69420):
+        super(ResumableRandomSampler, self).__init__(data_source=data_source)
+        self.data_source = data_source
+        self.generator = torch.Generator()
+        self.generator.manual_seed(seed)
+
+        self.perm_index = 0
+        self.perm = torch.randperm(self.num_samples, generator=self.generator)
+
+    @property
+    def num_samples(self) -> int:
+        return len(self.data_source)
+
+    def __iter__(self):
+        if self.perm_index >= len(self.perm):
+            self.perm_index = 0
+            self.perm = torch.randperm(self.num_samples, generator=self.generator)
+
+        while self.perm_index < len(self.perm):
+            self.perm_index += 1
+            yield self.perm[self.perm_index - 1].item()
+
+    def __len__(self):
+        return self.num_samples
+
+    def get_state(self):
+        return {"perm": self.perm, "perm_index": self.perm_index, "generator_state": self.generator.get_state()}
+
+    def set_state(self, state):
+        self.perm = state["perm"]
+        self.perm_index = state["perm_index"]
+        self.generator.set_state(state["generator_state"])
+
+
 # Functions
 def create_nli_data_loader(tokenizer: PreTrainedTokenizer,
                            file_path: str = None,
                            max_seq_length: int = 512,
                            model_type: int = 0,
                            use_explanation: bool = False,
+                           seed=69420,
                            **kwargs):
     dataset = ESNLIDataset(tokenizer=tokenizer,
                            file_path=file_path,
@@ -128,5 +178,6 @@ def create_nli_data_loader(tokenizer: PreTrainedTokenizer,
     # else:
     #     raise RuntimeError(f"Invalid model type: {model_type}")
     collator = GeneralDataCollator(tokenizer=tokenizer)
-    data_loader = DataLoader(dataset, collate_fn=collator, **kwargs)
+    sampler = ResumableRandomSampler(data_source=dataset, seed=seed)
+    data_loader = DataLoader(dataset, collate_fn=collator, sampler=sampler, **kwargs)
     return data_loader

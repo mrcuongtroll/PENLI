@@ -52,11 +52,11 @@ def main(args):
         logger.info(f"-----> Done.")
     rl_module = config.init_obj(rl_model_module, "rl", model=model, device=device)
     train_loader = config.init_obj(data_loader, 'train_loader', tokenizer=rl_module.model.tokenizer,
-                                   use_explanation=True)
+                                   use_explanation=True, seed=args.seed)
     valid_loader = config.init_obj(data_loader, 'valid_loader', tokenizer=rl_module.model.tokenizer,
-                                   use_explanation=True)
+                                   use_explanation=True, seed=args.seed)
     test_loader = config.init_obj(data_loader, 'test_loader', tokenizer=rl_module.model.tokenizer,
-                                  use_explanation=True)
+                                  use_explanation=True, seed=args.seed)
     optimizer = config.init_obj(optim, 'optimizer', rl_module.parameters())
     trainer = RLTrainer(module=rl_module,
                         optimizer=optimizer,
