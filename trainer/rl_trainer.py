@@ -48,11 +48,9 @@ class RLTrainer:
                 logger.info(f"------> Begin training...")
             for epoch in range(self.current_epoch, self.config['rl']['num_epochs']):
                 logger.info(f"------> Current epoch: {epoch}")
-                self.train_loader.sampler.set_epoch(epoch)
                 train_result = self._train_epoch(epoch)
 
                 if self.valid_loader is not None:
-                    self.valid_loader.sampler.set_epoch(epoch)
                     valid_result = self._eval_epoch(epoch)
                     valid_loss = valid_result['loss']
                     valid_reward = valid_loss['reward']
