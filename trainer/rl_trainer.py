@@ -51,8 +51,8 @@ class RLTrainer:
                     valid_result = self._eval_epoch(epoch)
                     valid_loss = valid_result['loss']
                     valid_reward = valid_loss['reward']
-                    valid_result[
-                        'state_dict'] = self.module.state_dict() if self.module else self.module.state_dict()
+                    valid_result['state_dict'] = self.module.model.state_dict()
+                    valid_result['critic_state_dict'] = self.module.critic_head.state_dict()
                     valid_result['optimizer'] = self.optimizer.state_dict()
                     valid_result['lr_scheduler'] = self.lr_scheduler.state_dict() if self.lr_scheduler else None
                     valid_result['epoch'] = epoch + 1
@@ -142,7 +142,8 @@ class RLTrainer:
     def _load_model(self):
         checkpoint_path = os.path.join(self.config['save_dir'], 'rl', 'checkpoint_last.pt')
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
-        self.module.load_state_dict(checkpoint['state_dict'])
+        self.module.model.load_state_dict(checkpoint['state_dict'])
+        self.module.critic_head.load_state_dict(checkpoint['critic_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.optimizer.param_groups[0]['capturable'] = True
         if self.lr_scheduler is not None:
