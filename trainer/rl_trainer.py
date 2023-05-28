@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import logging
 import itertools
+import os
 from utils.utils import AverageMeter, compute_masked_lm_results, compute_generative_results
 from utils.config import ConfigParser
 from model.model import BertPENLI, T5PENLI
@@ -37,6 +38,7 @@ class RLTrainer:
         self.best_reward = 0
         if self.config['rl']['freeze_plm']:
             self.module.model.freeze_plm(freeze=True)
+        os.makedirs(os.path.join(self.config['save_dir'], 'rl'), exist_ok=True)
 
     def train(self, resume=False):
         with torch.autograd.set_detect_anomaly(True):
