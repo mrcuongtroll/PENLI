@@ -153,9 +153,9 @@ class ResumableRandomSampler(Sampler):
         return {"perm": self.perm, "perm_index": self.perm_index, "generator_state": self.generator.get_state()}
 
     def set_state(self, state):
-        self.perm = state["perm"]
+        self.perm = torch.tensor(state["perm"], dtype=torch.int)
         self.perm_index = state["perm_index"]
-        self.generator.set_state(state["generator_state"])
+        self.generator.set_state(torch.ByteTensor(state["generator_state"]))
 
 
 # Functions
