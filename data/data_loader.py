@@ -155,7 +155,9 @@ class ResumableRandomSampler(Sampler):
     def set_state(self, state):
         self.perm = torch.tensor(state["perm"], dtype=torch.int)
         self.perm_index = state["perm_index"]
-        self.generator.set_state(torch.ByteTensor(state["generator_state"], device='cpu'))
+        generator_state = torch.ByteTensor(state["generator_state"])
+        generator_state = generator_state.to(torch.device('cpu'))
+        self.generator.set_state(generator_state)
 
 
 # Functions
