@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import logging
-import itertools
 import os
 from utils.utils import AverageMeter, compute_masked_lm_results, compute_generative_results
 from utils.config import ConfigParser
@@ -80,7 +79,7 @@ class RLTrainer:
         reward_meter = AverageMeter()
         loss_meter = AverageMeter()
         num_batches_per_print = len(self.train_loader) // self.config['rl']['num_prints']
-        for batch_idx, batch in enumerate(itertools.islice(self.train_loader, self.current_batch_idx, None)):
+        for batch_idx, batch in enumerate(self.train_loader):
             rewards, critic_vals, action_lp_vals, entropy, total_rewards = self.module.train_env_episode(batch)
             loss = self.module.compute_loss(action_p_vals=action_lp_vals,
                                             G=rewards,
@@ -102,8 +101,8 @@ class RLTrainer:
                       "lr": lr}
             if (batch_idx + 1) % num_batches_per_print == 0:
                 logger.info(f"Training "
-                            f"[{batch_idx * self.train_loader.batch_size}/{len(self.train_loader.dataset)} "
-                            f"({(100. * batch_idx / len(self.train_loader)):.0f}%)] "
+                            f"[{(self.current_batch_idx + batch_idx) * self.train_loader.batch_size}/{len(self.train_loader.dataset)} "
+                            f"({(100. * (self.current_batch_idx + batch_idx) / len(self.train_loader)):.0f}%)] "
                             f"| Loss: {loss_meter.average():.5f} "
                             f"| Reward: {reward_meter.average():.4f}"
                             f"| Learning Rate: {lr}")
@@ -114,7 +113,7 @@ class RLTrainer:
                 result['optimizer'] = self.optimizer.state_dict()
                 result['lr_scheduler'] = self.lr_scheduler.state_dict() if self.lr_scheduler else None
                 result['epoch'] = epoch
-                result['batch_idx'] = self.current_batch_idx + batch_idx + 1
+                result['batch_idx'] = self.current_batch_idx + batch_idx
                 result['best_reward'] = self.best_reward
                 result['train_sampler'] = self.train_loader.sampler.get_state()
                 torch.save(result, os.path.join(self.config['save_dir'], 'rl', 'checkpoint_last.pt'))
