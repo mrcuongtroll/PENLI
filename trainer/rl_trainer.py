@@ -55,7 +55,7 @@ class RLTrainer:
                 if self.valid_loader is not None:
                     valid_result = self._eval_epoch(epoch)
                     valid_loss = valid_result['loss']
-                    valid_reward = valid_loss['reward']
+                    valid_reward = valid_result['reward']
                     valid_result['state_dict'] = self.module.model.state_dict()
                     valid_result['critic_state_dict'] = self.module.critic_head.state_dict()
                     valid_result['optimizer'] = self.optimizer.state_dict()
@@ -124,6 +124,7 @@ class RLTrainer:
                     f"| Reward: {reward_meter.average():.4f}"
                     f"| Learning Rate: {self.optimizer.param_groups[0]['lr']}"
                     )
+        self.current_batch_idx = 0
         return result
 
     def _eval_epoch(self, epoch):
