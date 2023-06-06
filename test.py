@@ -33,10 +33,13 @@ def main(args):
     else:
         device = args.device
     model = config.init_obj(model_module, "model")
+    checkpoint_path = config['save_dir']
+    if args.use_rl_ckpt:
+        checkpoint_path = os.path.join(checkpoint_path, 'rl')
     if args.best_ckpt:
-        checkpoint_path = os.path.join(config['save_dir'], 'checkpoint_best.pt')
+        checkpoint_path = os.path.join(checkpoint_path, 'checkpoint_best.pt')
     else:
-        checkpoint_path = os.path.join(config['save_dir'], 'checkpoint_last.pt')
+        checkpoint_path = os.path.join(checkpoint_path, 'checkpoint_last.pt')
     if not os.path.exists(checkpoint_path):
         logger.critical(f"The checkpoint {checkpoint_path} doesn't exist for the config {args.config}. "
                         f"Train a model with the given config using train.py")
@@ -71,5 +74,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_explanation', default=False, action='store_true',
                         help='to concatenate the explanation to the input or not')
     parser.add_argument('--best_ckpt', default=False, action='store_true', help='use the best checkpoint or the latest')
+    parser.add_argument('--use_rl_ckpt', default=False, action='store_true',
+                        help='to use reinforcement learning checkpoint or not')
     args = parser.parse_args()
     main(args)
