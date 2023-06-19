@@ -97,15 +97,15 @@ class Trainer:
             elif isinstance(self.model, T5PENLI):
                 assert self.train_loader.dataset.model_type == 2, "Set dataset's model_type to 2 when using T5."
                 input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['labels']
+                input_ids, attention_mask, labels = (input_ids.to(self.device),
+                                                     attention_mask.to(self.device),
+                                                     labels.to(self.device)
+                                                     )
                 if self.finetune_critic:
                     explanation = batch['explanation'].to(self.device)
                     explanation_mask = batch['explanation_mask'].to(self.device)
                     input_ids = torch.cat([input_ids, explanation], dim=-1)
                     attention_mask = torch.cat([attention_mask, explanation_mask], dim=-1)
-                input_ids, attention_mask, labels = (input_ids.to(self.device),
-                                                     attention_mask.to(self.device),
-                                                     labels.to(self.device)
-                                                     )
                 outputs = self.model(input_ids=input_ids,
                                      attention_mask=attention_mask,
                                      labels=labels)
@@ -188,6 +188,11 @@ class Trainer:
                                                          attention_mask.to(self.device),
                                                          labels.to(self.device)
                                                          )
+                    if self.finetune_critic:
+                        explanation = batch['explanation'].to(self.device)
+                        explanation_mask = batch['explanation_mask'].to(self.device)
+                        input_ids = torch.cat([input_ids, explanation], dim=-1)
+                        attention_mask = torch.cat([attention_mask, explanation_mask], dim=-1)
                     outputs = self.model(input_ids=input_ids,
                                          attention_mask=attention_mask,
                                          labels=labels)
