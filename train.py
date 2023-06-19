@@ -42,9 +42,9 @@ def main(args):
         model.load_state_dict(checkpoint['state_dict'])
         model.to(device)
         logger.info(f"-----> Done.")
-    train_loader = config.init_obj(data_loader, 'train_loader', tokenizer=model.tokenizer, use_explanation=False)
-    valid_loader = config.init_obj(data_loader, 'valid_loader', tokenizer=model.tokenizer, use_explanation=False)
-    # test_loader = config.init_obj(data_loader, 'test_loader', tokenizer=model.tokenizer, use_explanation=False)
+    train_loader = config.init_obj(data_loader, 'train_loader', tokenizer=model.tokenizer, use_explanation=args.finetune_critic)
+    valid_loader = config.init_obj(data_loader, 'valid_loader', tokenizer=model.tokenizer, use_explanation=args.finetune_critic)
+    # test_loader = config.init_obj(data_loader, 'test_loader', tokenizer=model.tokenizer, use_explanation=args.finetune_critic)
     optimizer = config.init_obj(optim, 'optimizer', model.parameters())
     criterion = config.init_obj(nn, "loss")
     trainer = Trainer(model=model,
