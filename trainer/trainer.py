@@ -151,10 +151,10 @@ class Trainer:
             logger.info(f"Finished training epoch {epoch} "
                         f"| Loss: {loss_meter.average():.5f} "
                         f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
-                        f"| Conditional generation Accuracy: {metrics['generation_acc']:.4f} "
+                        f"| Conditional generation Accuracy: {metrics['generative_acc']:.4f} "
                         )
             result['inference_acc'] = metrics['inference_acc']
-            result['generation_acc'] = metrics['generation_acc']
+            result['generation_acc'] = metrics['generative_acc']
             result['details'] = metrics
         return result
 
@@ -227,7 +227,7 @@ class Trainer:
             logger.info(f"Finished training epoch {epoch} "
                         f"| Loss: {loss_meter.average():.5f} "
                         f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
-                        f"| Conditional generation Accuracy: {metrics['generation_acc']:.4f} "
+                        f"| Conditional generation Accuracy: {metrics['generative_acc']:.4f} "
                         )
             result['inference_acc'] = metrics['inference_acc']
             result['generative_acc'] = metrics['generative_acc']
