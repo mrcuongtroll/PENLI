@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import logging
+import os
 from utils.utils import AverageMeter, compute_masked_lm_results, compute_generative_results
 from utils.config import ConfigParser
 from model.model import BertPENLI, T5PENLI
@@ -37,6 +38,7 @@ class Trainer:
         self.finetune_critic = finetune_critic
         if self.finetune_critic:
             self.config['save_dir'] = os.path.join(self.config['save_dir'], 'critic')
+            os.makedirs(self.config['save_dir'], exist_ok=True)
         if self.config['freeze_plm']:
             self.model.freeze_plm(freeze=True)
 
