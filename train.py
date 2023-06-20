@@ -35,6 +35,7 @@ def main(args):
         device = args.device
     model = config.init_obj(model_module, "model")
     if args.finetune_critic:
+        logger.info("-----> Finetuning critic model...")
         checkpoint_path = os.path.join(config['save_dir'], 'checkpoint_best.pt')
         assert os.path.exists(checkpoint_path), "Trained actor checkpoint does not exist. Cannot finetune critic."
         logger.info(f"-----> Loading model checkpoint from {checkpoint_path}...")
