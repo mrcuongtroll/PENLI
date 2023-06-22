@@ -36,6 +36,11 @@ def main(args):
     checkpoint_path = config['save_dir']
     if args.use_rl_ckpt:
         checkpoint_path = os.path.join(checkpoint_path, 'rl')
+    elif args.use_critic_ckpt:
+        assert args.use_explanation, "--use_explanation must be set to True to evaluate finetuned critic."
+        checkpoint_path = os.path.join(checkpoint_path, 'critic')
+    else:
+        pass
     if args.best_ckpt:
         checkpoint_path = os.path.join(checkpoint_path, 'checkpoint_best.pt')
     else:
@@ -76,5 +81,7 @@ if __name__ == '__main__':
     parser.add_argument('--best_ckpt', default=False, action='store_true', help='use the best checkpoint or the latest')
     parser.add_argument('--use_rl_ckpt', default=False, action='store_true',
                         help='to use reinforcement learning checkpoint or not')
+    parser.add_argument('--use_critic_ckpt', default=False, action='store_true',
+                        help='to use finetuned critic checkpoint or not')
     args = parser.parse_args()
     main(args)
