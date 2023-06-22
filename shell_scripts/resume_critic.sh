@@ -1,0 +1,12 @@
+python train.py \
+  --device=cuda \
+  --config=/kaggle/working/PENLI/configs/default_ed.json \
+  --finetune_critic \
+  --resume
+
+python test.py \
+     --device=cuda \
+     --config=/kaggle/working/PENLI/configs/default_ed.json \
+     --best_ckpt \
+     --use_explanation \
+     --use_critic_ckpt
