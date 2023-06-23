@@ -1,11 +1,3 @@
-"""
-TODO: IMPORTANT: Since the next state in this problem is constant (i.e. given a premise, hypothesis pair, there is only
-ONE explanation regardless of the model's prediction), we cannot use the curiosity approach.
-Instead, we will use the ordinary actor-critic rl approach. The actor will be the model (takes the reformulated input
-and outputs true, neutral, or false). And the critic will be a model that takes the concatenation of input|explanation
-and output true, neutral, or false, then compare this result with the actor's. We can use the same generative model
-instance as both the actor and the critic (i.e. self-criticism). The actual reward will be prediction accuracy.
-"""
 from ..model import *
 import torch.nn as nn
 import torch.nn.functional as F
@@ -17,12 +9,13 @@ import numpy as np
 
 class A2C(nn.Module):
 
-    def __init__(self, model: nn.Module, critic_hidden_size: int,
+    def __init__(self, model: nn.Module, critic_model: nn.Module = None, critic_head_hidden_size: int = 768,
                  gamma=0.99, critic_coef=0.5, entropy_coef=0.01,
                  device='cuda'):
         """
         :param model: A model, which will act as both the actor and the critic.
-        :param critic_hidden_size: The hidden dimension of the critic head.
+        :param critic_model: A model of the same type as 'model' but finetuned on dataset with explanation.
+        :param critic_head_hidden_size: The hidden dimension of the critic head.
         :param gamma: Discount parameter to estimate rewards.
         :param critic_coef: Critic loss coefficient.
         :param entropy_coef: Entropy loss coefficient.
@@ -33,10 +26,14 @@ class A2C(nn.Module):
         self.critic_coef = critic_coef
         self.entropy_coef = entropy_coef
         self.model = model
+        if critic_model is not None:
+            self.critic_model = critic_model
+        else:
+            self.critic_model = self.model
         self.critic_head = nn.Sequential(
-            nn.Linear(model.config.vocab_size * 2, critic_hidden_size),
+            nn.Linear(model.config.vocab_size * 2, critic_head_hidden_size),
             nn.ReLU(),
-            nn.Linear(critic_hidden_size, 1)
+            nn.Linear(critic_head_hidden_size, 1)
         )
         self.device = device
 
@@ -53,10 +50,10 @@ class A2C(nn.Module):
         critic_input = torch.cat([input_ids, explanation], dim=-1)
         critic_mask = torch.cat([attention_mask, explanation_mask], dim=-1)
         # (batch_size x output_seq_length x vocab_size)
-        critic_logits = self.model(input_ids=critic_input,
-                                   attention_mask=critic_mask,
-                                   labels=labels,
-                                   **kwargs)
+        critic_logits = self.critic_model(input_ids=critic_input,
+                                          attention_mask=critic_mask,
+                                          labels=labels,
+                                          **kwargs)
         # Get value by forwarding the policy and the critic_logits (batch_size x output_seq_length x 2*vocab_size)
         critic_logits = torch.cat([critic_logits, policy], dim=-1)
         # value: shape = (batch_size x output_seq_length x 1)

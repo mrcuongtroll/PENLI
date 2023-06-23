@@ -36,10 +36,13 @@ def main(args):
     else:
         device = args.device
     model = config.init_obj(model_module, "model")
+    critic_model = None
     if args.best_ckpt:
         checkpoint_path = os.path.join(config['save_dir'], 'checkpoint_best.pt')
+        critic_checkpoint_path = os.path.join(config['save_dir'], 'critic', 'checkpoint_best.pt')
     else:
         checkpoint_path = os.path.join(config['save_dir'], 'checkpoint_last.pt')
+        critic_checkpoint_path = os.path.join(config['save_dir'], 'critic', 'checkpoint_last.pt')
     if not os.path.exists(checkpoint_path):
         logger.critical(f"The checkpoint {checkpoint_path} doesn't exist for the config {args.config}. "
                         f"Train a model with the given config using train.py")
@@ -50,13 +53,26 @@ def main(args):
         model.load_state_dict(checkpoint['state_dict'])
         model.to(device)
         logger.info(f"-----> Done.")
-    rl_module = config.init_obj(rl_model_module, "rl", model=model, device=device)
+    if args.use_finetuned_critic:
+        if not os.path.exists(critic_checkpoint_path):
+            logger.critical(f"The finetuned critic checkpoint {critic_checkpoint_path} doesn't exist for the config "
+                            f"{args.config}. Finetune the model on e-SNLI to obtain a critic checkpoint first, or don't "
+                            f"use --use_finetuned_critic.")
+            exit()
+        else:
+            critic_model = config.init_obj(model_module, "model")
+            logger.info(f"-----> Loading critic model checkpoint from {critic_checkpoint_path}...")
+            critic_checkpoint = torch.load(critic_checkpoint_path, map_location=device)
+            critic_model.load_state_dict(critic_checkpoint['state_dict'])
+            critic_model.to(device)
+            logger.info(f"-----> Done.")
+    rl_module = config.init_obj(rl_model_module, "rl", model=model, critic_model=critic_model, device=device)
     train_loader = config.init_obj(data_loader, 'train_loader', tokenizer=rl_module.model.tokenizer,
                                    use_explanation=True, seed=args.seed)
     valid_loader = config.init_obj(data_loader, 'valid_loader', tokenizer=rl_module.model.tokenizer,
                                    use_explanation=True, seed=args.seed)
-    test_loader = config.init_obj(data_loader, 'test_loader', tokenizer=rl_module.model.tokenizer,
-                                  use_explanation=True, seed=args.seed)
+    # test_loader = config.init_obj(data_loader, 'test_loader', tokenizer=rl_module.model.tokenizer,
+    #                               use_explanation=True, seed=args.seed)
     optimizer = config.init_obj(optim, 'optimizer', rl_module.parameters())
     trainer = RLTrainer(module=rl_module,
                         optimizer=optimizer,
@@ -78,6 +94,8 @@ if __name__ == '__main__':
                         choices=['cuda', 'cpu'],
                         help='Device to train the model on (cuda/cpu)')
     parser.add_argument('--best_ckpt', default=False, action='store_true', help='use the best checkpoint or the latest')
+    parser.add_argument('--use_finetuned_critic', default=False, action='store_true',
+                        help='Use critic model finetuned on explanation dataset.')
     parser.add_argument("--seed", default=69420, type=int, help='random seed')
     args = parser.parse_args()
     main(args)
