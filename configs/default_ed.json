@@ -9,14 +9,14 @@
   "rl": {
     "freeze_plm": false,
     "num_epochs": 3,
-    "grad_clip": 0.5,
+    "grad_clip": 1,
     "num_prints": 10,
     "type": "A2C",
     "kwargs": {
       "critic_head_hidden_size": 768,
       "gamma": 0.8,
-      "critic_coef": 0.5,
-      "entropy_coef": 0.01
+      "critic_coef": 1,
+      "entropy_coef": 0
     }
   },
   "model": {
