@@ -33,7 +33,8 @@ class A2C(nn.Module):
         self.critic_head = nn.Sequential(
             nn.Linear(model.config.vocab_size * 2, critic_head_hidden_size),
             nn.ReLU(),
-            nn.Linear(critic_head_hidden_size, 1)
+            nn.Linear(critic_head_hidden_size, 1),
+            nn.Sigmoid()
         )
         self.device = device
 
