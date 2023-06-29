@@ -3,9 +3,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import logging
 import os
-from utils.utils import AverageMeter, compute_masked_lm_results, compute_generative_results
+from utils.utils import AverageMeter
 from utils.config import ConfigParser
-from model.model import BertPENLI, T5PENLI
 from model.rl.actor_critic import A2C
 from definitions import *
 

@@ -3,9 +3,10 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import logging
 import os
-from utils.utils import AverageMeter, compute_masked_lm_results, compute_generative_results
+from utils.utils import AverageMeter
+from utils.evaluate import compute_masked_lm_results, compute_generative_results, compute_autoregressive_results
 from utils.config import ConfigParser
-from model.model import BertPENLI, T5PENLI
+from model.model import BertPENLI, T5PENLI, GPTPENLI
 from definitions import *
 
 logger = logging.getLogger(name=__name__)
@@ -62,6 +63,7 @@ class Trainer:
                     valid_result['optimizer'] = self.optimizer.state_dict()
                     valid_result['lr_scheduler'] = self.lr_scheduler.state_dict() if self.lr_scheduler else None
                     valid_result['epoch'] = epoch + 1
+                    valid_result['train_sampler'] = self.train_loader.sampler.get_state()
                     if valid_acc > self.best_acc:
                         self.best_acc = valid_acc
                         logger.info(f"New best valid acc found: {valid_acc}. Saving checkpoint...")
@@ -92,9 +94,16 @@ class Trainer:
                                                                      attention_mask.to(self.device),
                                                                      labels.to(self.device)
                                                                      )
-                outputs = self.model(input_ids=input_ids,
-                                     token_type_ids=token_type_ids,
-                                     attention_mask=attention_mask)
+                if self.finetune_critic:
+                    explanation = batch['explanation'].to(self.device)
+                    explanation_mask = batch['explanation_mask'].to(self.device)
+                    input_ids = torch.cat([input_ids, explanation], dim=-1)
+                    attention_mask = torch.cat([attention_mask, explanation_mask], dim=-1)
+                outputs, full_outputs = self.model(input_ids=input_ids,
+                                                   token_type_ids=token_type_ids,
+                                                   attention_mask=attention_mask,
+                                                   labels=labels)
+                loss = full_outputs.loss
                 token_types.extend(token_type_ids.detach().cpu().numpy())
             elif isinstance(self.model, T5PENLI):
                 assert self.train_loader.dataset.model_type == 2, "Set dataset's model_type to 2 when using T5."
@@ -108,21 +117,33 @@ class Trainer:
                     explanation_mask = batch['explanation_mask'].to(self.device)
                     input_ids = torch.cat([input_ids, explanation], dim=-1)
                     attention_mask = torch.cat([attention_mask, explanation_mask], dim=-1)
-                outputs = self.model(input_ids=input_ids,
-                                     attention_mask=attention_mask,
-                                     labels=labels)
+                outputs, full_outputs = self.model(input_ids=input_ids,
+                                                   attention_mask=attention_mask,
+                                                   labels=labels)
+                loss = full_outputs.loss
+            elif isinstance(self.model, GPTPENLI):
+                assert self.train_loader.dataset.model_type == 1, "Set dataset's model_type to 1 when using GPT2."
+                input_ids, attention_mask = batch['input_ids'], batch['attention_mask']
+                input_ids, attention_mask = input_ids.to(self.device), attention_mask.to(self.device)
+                labels = batch['labels'].to(self.device)
+                if self.finetune_critic:
+                    explanation = batch['explanation'].to(self.device)
+                    explanation_mask = batch['explanation_mask'].to(self.device)
+                    input_ids = torch.cat([input_ids, explanation], dim=-1)
+                    attention_mask = torch.cat([attention_mask, explanation_mask], dim=-1)
+                outputs, full_outputs = self.model(input_ids=input_ids,
+                                                   attention_mask=attention_mask,
+                                                   labels=labels)
+                loss = full_outputs.loss
             else:
                 raise RuntimeError("Cannot match model type with dataset type.")
-            p_outputs = torch.permute(outputs, (0, 2, 1))
-            self.optimizer.zero_grad()
-            # logger.debug(f"Input shape: {input_ids.shape} "
-            #              f"Output shape: {outputs.shape} "
-            #              f"Target shape: {labels.shape}")
-            loss = self.criterion(p_outputs, labels)
+            # p_outputs = torch.permute(outputs, (0, 2, 1))
+            # loss = self.criterion(p_outputs, labels)
             loss.backward()
             if self.config['grad_clip'] is not None:
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.config['grad_clip'])
             self.optimizer.step()
+            self.optimizer.zero_grad()
             lr = self.optimizer.param_groups[0]['lr']
             if self.lr_scheduler:
                 self.lr_scheduler.step()
@@ -156,7 +177,17 @@ class Trainer:
                         f"| Conditional generation Accuracy: {metrics['generative_acc']:.4f} "
                         )
             result['inference_acc'] = metrics['inference_acc']
-            result['generation_acc'] = metrics['generative_acc']
+            result['generative_acc'] = metrics['generative_acc']
+            result['details'] = metrics
+        elif isinstance(self.model, GPTPENLI):
+            metrics = compute_autoregressive_results(self.model.tokenizer, predictions, ground_truth)
+            logger.info(f"Finished training epoch {epoch} "
+                        f"| Loss: {loss_meter.average():.5f} "
+                        f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
+                        f"| Conditional generation Accuracy: {metrics['generative_acc']:.4f} "
+                        )
+            result['inference_acc'] = metrics['inference_acc']
+            result['generative_acc'] = metrics['generative_acc']
             result['details'] = metrics
         return result
 
@@ -179,9 +210,16 @@ class Trainer:
                                                                          attention_mask.to(self.device),
                                                                          labels.to(self.device)
                                                                          )
-                    outputs = self.model(input_ids=input_ids,
-                                         token_type_ids=token_type_ids,
-                                         attention_mask=attention_mask)
+                    if self.finetune_critic:
+                        explanation = batch['explanation'].to(self.device)
+                        explanation_mask = batch['explanation_mask'].to(self.device)
+                        input_ids = torch.cat([input_ids, explanation], dim=-1)
+                        attention_mask = torch.cat([attention_mask, explanation_mask], dim=-1)
+                    outputs, full_outputs = self.model(input_ids=input_ids,
+                                                       token_type_ids=token_type_ids,
+                                                       attention_mask=attention_mask,
+                                                       labels=labels)
+                    loss = full_outputs.loss
                     token_types.extend(token_type_ids.detach().cpu().numpy())
                 elif isinstance(self.model, T5PENLI):
                     assert self.valid_loader.dataset.model_type == 2, "Set dataset's model_type to 2 when using T5."
@@ -195,13 +233,28 @@ class Trainer:
                         explanation_mask = batch['explanation_mask'].to(self.device)
                         input_ids = torch.cat([input_ids, explanation], dim=-1)
                         attention_mask = torch.cat([attention_mask, explanation_mask], dim=-1)
-                    outputs = self.model(input_ids=input_ids,
-                                         attention_mask=attention_mask,
-                                         labels=labels)
+                    outputs, full_outputs = self.model(input_ids=input_ids,
+                                                       attention_mask=attention_mask,
+                                                       labels=labels)
+                    loss = full_outputs.loss
+                elif isinstance(self.model, GPTPENLI):
+                    assert self.valid_loader.dataset.model_type == 1, "Set dataset's model_type to 2 when using GPT2."
+                    input_ids, attention_mask = batch['input_ids'], batch['attention_mask']
+                    input_ids, attention_mask = input_ids.to(self.device), attention_mask.to(self.device)
+                    labels = batch['labels'].to(self.device)
+                    if self.finetune_critic:
+                        explanation = batch['explanation'].to(self.device)
+                        explanation_mask = batch['explanation_mask'].to(self.device)
+                        input_ids = torch.cat([input_ids, explanation], dim=-1)
+                        attention_mask = torch.cat([attention_mask, explanation_mask], dim=-1)
+                    outputs, full_outputs = self.model(input_ids=input_ids,
+                                                       attention_mask=attention_mask,
+                                                       labels=labels)
+                    loss = full_outputs.loss
                 else:
                     raise RuntimeError("Cannot match model type with dataset type.")
-                p_outputs = torch.permute(outputs, (0, 2, 1))
-                loss = self.criterion(p_outputs, labels)
+                # p_outputs = torch.permute(outputs, (0, 2, 1))
+                # loss = self.criterion(p_outputs, labels)
                 pred = torch.argmax(outputs, dim=-1)
                 predictions.extend(pred.detach().cpu().numpy())
                 ground_truth.extend(labels.detach().cpu().numpy())
@@ -216,7 +269,7 @@ class Trainer:
                                 )
         if isinstance(self.model, BertPENLI):
             metrics = compute_masked_lm_results(predictions, ground_truth, token_types)
-            logger.info(f"Finished training epoch {epoch} "
+            logger.info(f"Finished evaluating epoch {epoch} "
                         f"| Loss: {loss_meter.average():.5f} "
                         f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
                         f"| Masked LM Accuracy: {metrics['mlm_acc']:.4f} "
@@ -226,7 +279,17 @@ class Trainer:
             result['details'] = metrics
         elif isinstance(self.model, T5PENLI):
             metrics = compute_generative_results(predictions, ground_truth)
-            logger.info(f"Finished training epoch {epoch} "
+            logger.info(f"Finished evaluating epoch {epoch} "
+                        f"| Loss: {loss_meter.average():.5f} "
+                        f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
+                        f"| Conditional generation Accuracy: {metrics['generative_acc']:.4f} "
+                        )
+            result['inference_acc'] = metrics['inference_acc']
+            result['generative_acc'] = metrics['generative_acc']
+            result['details'] = metrics
+        elif isinstance(self.model, GPTPENLI):
+            metrics = compute_autoregressive_results(self.model.tokenizer, predictions, ground_truth)
+            logger.info(f"Finished evaluating epoch {epoch} "
                         f"| Loss: {loss_meter.average():.5f} "
                         f"| Inference Accuracy: {metrics['inference_acc']:.4f} "
                         f"| Conditional generation Accuracy: {metrics['generative_acc']:.4f} "
@@ -246,4 +309,5 @@ class Trainer:
             self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
         self.best_acc = checkpoint['best_acc']
         self.current_epoch = checkpoint['epoch']
+        self.train_loader.sampler.set_state(checkpoint['train_sampler'])
         logger.info(f"------> Loaded checkpoint from {checkpoint_path}")

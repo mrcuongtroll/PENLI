@@ -23,9 +23,10 @@ IGNORE_ID = -100
 # Models
 TRAINING_CONFIG_DIR = os.path.abspath('./configs')
 DEFAULT_TRAINING_CONFIG = os.path.join(TRAINING_CONFIG_DIR, 'default_ed.json')
-PLM = {0: 'bert-base-uncased',
-       1: 'gpt2',
-       2: 'google/flan-t5-base'}
+PLM = {0: 'bert-base-uncased',     # 110M
+       1: 'gpt2',                  # 124M
+       2: 'google/flan-t5-base'    # 250M
+       }
 """
 Flan-T5 special tokens: eos: </s>,
                         unk: <unk>,

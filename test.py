@@ -1,7 +1,7 @@
 from definitions import *
 import argparse
 from utils.config import ConfigParser
-from utils.utils import evaluate_model
+from utils.evaluate import evaluate_model
 import model.model as model_module
 import data.data_loader as data_loader
 import logger.logger as logger_module

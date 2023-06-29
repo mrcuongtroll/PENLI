@@ -89,6 +89,22 @@ class ESNLIDataset(Dataset):
                         'token_type_ids': token_type_ids,
                         'explanation': encoded_explanation,
                         'labels': labels}
+        elif self.model_type == 1:
+            raw_inputs = f"Instruction: Given sentence 1, is sentence 2 true, neutral, or false?\n" \
+                         f"Sentence 1: {premise}\n" \
+                         f"Sentence 2: {hypothesis}\n" \
+                         f"Output: {GENERATIVE_LABEL_MAPPING[label]}"
+            encodings = self.tokenizer.encode(raw_inputs)
+            encodings = encodings[:min(len(encodings), self.max_seq_length)]
+            if not self.use_explanation:
+                return {'input_ids': encodings,
+                        'labels': encodings}
+            else:
+                encoded_explanation = self.tokenizer.encode(explanation)
+                encoded_explanation = encoded_explanation[:min(len(encoded_explanation), self.max_seq_length)]
+                return {'input_ids': encodings,
+                        'explanation': encoded_explanation,
+                        'labels': encodings}
         elif self.model_type == 2:
             raw_inputs = f"Sentence 1: {premise}. Sentence 2: {hypothesis}. " \
                          f"Given sentence 1, is sentence 2 true, neutral, or false?"
@@ -106,8 +122,6 @@ class ESNLIDataset(Dataset):
                 return {'input_ids': encodings,
                         'explanation': encoded_explanation,
                         'labels': labels}
-        else:
-            raise RuntimeError(f"model_type 1 has not been implemented.")
 
 
 class ResumableRandomSampler(Sampler):
