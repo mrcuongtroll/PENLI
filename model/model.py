@@ -115,6 +115,7 @@ class GPTPENLI(nn.Module):
         self.tokenizer = GPT2Tokenizer.from_pretrained(pretrained)
         self.tokenizer.add_special_tokens({'pad_token': '<pad>'})
         self.model = GPT2LMHeadModel.from_pretrained(pretrained)
+        self.model.resize_token_embeddings(len(self.tokenizer))
         self.config = self.model.config
         self.softmax = nn.LogSoftmax(dim=-1)
 
