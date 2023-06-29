@@ -1,4 +1,3 @@
-# TODO: write a data collator that allows padding more keys than huggingface's collators
 import torch
 import numpy as np
 from transformers import PreTrainedTokenizerBase

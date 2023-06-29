@@ -46,20 +46,22 @@ class A2C(nn.Module):
                 labels=None,
                 **kwargs):
         # Get the policy (batch_size x output_seq_length x vocab_size)
-        policy = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels, **kwargs)
+        policy, policy_outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels, **kwargs)
+        policy_logits = policy_outputs.logits
         # Forward the sentence and the explanation through the critic (the model acts as both the actor and the critic)
         critic_input = torch.cat([input_ids, explanation], dim=-1)
         critic_mask = torch.cat([attention_mask, explanation_mask], dim=-1)
         # (batch_size x output_seq_length x vocab_size)
-        critic_logits = self.critic_model(input_ids=critic_input,
-                                          attention_mask=critic_mask,
-                                          labels=labels,
-                                          **kwargs)
+        _, critic_outputs = self.critic_model(input_ids=critic_input,
+                                              attention_mask=critic_mask,
+                                              labels=labels,
+                                              **kwargs)
+        critic_logits = critic_outputs.logits
         # Get value by forwarding the policy and the critic_logits (batch_size x output_seq_length x 2*vocab_size)
-        critic_logits = torch.cat([critic_logits, policy], dim=-1)
+        critic_logits = torch.cat([critic_logits, policy_logits], dim=-1)
         # value: shape = (batch_size x output_seq_length x 1)
         value = self.critic_head(critic_logits)
-        return policy, value
+        return policy_logits, value
 
     def train_env_episode(self, batch):
         """
