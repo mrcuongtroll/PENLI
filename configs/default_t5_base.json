@@ -1,0 +1,75 @@
+{
+  "name": "default_t5_base",
+  "n_gpu": 1,
+  "save_dir": "./logs/",
+  "num_epochs": 5,
+  "num_prints": 10,
+  "freeze_plm": false,
+  "grad_clip": 1.0,
+  "rl": {
+    "freeze_plm": false,
+    "num_epochs": 3,
+    "grad_clip": 1,
+    "num_prints": 10,
+    "type": "A2C",
+    "kwargs": {
+      "critic_head_hidden_size": 768,
+      "gamma": 0.8,
+      "critic_coef": 1,
+      "entropy_coef": 0
+    }
+  },
+  "model": {
+    "type": "T5PENLI",
+    "kwargs": {
+      "pretrained": "t5-base"
+    }
+  },
+  "train_loader": {
+    "type": "create_nli_data_loader",
+    "kwargs": {
+      "file_path": "./datasets/e-SNLI/esnli_train_1.csv",
+      "max_seq_length": 512,
+      "model_type": 2,
+      "batch_size": 8,
+      "shuffle": false
+    }
+  },
+  "valid_loader": {
+    "type": "create_nli_data_loader",
+    "kwargs": {
+      "file_path": "./datasets/e-SNLI/esnli_dev.csv",
+      "max_seq_length": 512,
+      "model_type": 2,
+      "batch_size": 16,
+      "shuffle": false
+    }
+  },
+  "test_loader": {
+    "type": "create_nli_data_loader",
+    "kwargs": {
+      "file_path": "./datasets/e-SNLI/esnli_test.csv",
+      "max_seq_length": 512,
+      "model_type": 2,
+      "batch_size": 16,
+      "shuffle": false
+    }
+  },
+  "loss": {
+    "type": "NLLLoss",
+    "kwargs": {}
+  },
+  "optimizer": {
+    "type": "AdamW",
+    "kwargs": {
+      "lr": 1e-5
+    }
+  },
+  "logging": {
+    "type": "setup_logging",
+    "kwargs": {
+      "save_dir": "./logs/",
+      "log_config": "./logger/logging_config.json"
+    }
+  }
+}
