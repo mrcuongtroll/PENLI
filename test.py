@@ -55,6 +55,9 @@ def main(args):
         model.load_state_dict(checkpoint['state_dict'])
         model.to(device)
         logger.info(f"-----> Done.")
+    if args.test_dataset_path is not None:
+        config['test_loader']['kwargs']['file_path'] = args.test_dataset_path
+    logger.info(f"Testing the model on {config['test_loader']['kwargs']['file_path']}...")
     test_loader = config.init_obj(data_loader, 'test_loader', tokenizer=model.tokenizer, use_explanation=True)
     criterion = config.init_obj(nn, "loss")
     results = evaluate_model(model=model,
@@ -76,6 +79,7 @@ if __name__ == '__main__':
                         nargs='?',
                         choices=['cuda', 'cpu'],
                         help='Device to train the model on (cuda/cpu)')
+    parser.add_argument('--test_dataset_path', default=None, type=str, help='Path to the test dataset.')
     parser.add_argument('--use_explanation', default=False, action='store_true',
                         help='to concatenate the explanation to the input or not')
     parser.add_argument('--best_ckpt', default=False, action='store_true', help='use the best checkpoint or the latest')
