@@ -56,3 +56,7 @@ def count_parameters(model):
     print(table)
     print(f"Total Trainable Params: {total_params}")
     return total_params
+
+
+def most_frequent(l):
+    return max(set(l), key=l.count)
