@@ -7,6 +7,7 @@ import os
 from transformers import PreTrainedTokenizer, DataCollatorForTokenClassification, DataCollatorForSeq2Seq
 from .data_collator import GeneralDataCollator
 from definitions import *
+from utils.utils import most_frequent
 from typing import Tuple
 
 
@@ -157,6 +158,8 @@ class MNLIDataset(Dataset):
         premise = str(data['sentence1'])
         hypothesis = str(data['sentence2'])
         label = str(data['gold_label'])
+        if label not in GENERATIVE_LABEL_MAPPING:
+            label = most_frequent(list(map(str, data['annotator_labels'])))
         if self.model_type == 0:
             cls_token_id = self.tokenizer.cls_token_id
             sep_token_id = self.tokenizer.sep_token_id
