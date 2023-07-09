@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from transformers import BertForMaskedLM, T5ForConditionalGeneration, GPT2LMHeadModel
-from transformers import BertTokenizer, T5Tokenizer, GPT2Tokenizer
+from transformers import BertForMaskedLM, T5ForConditionalGeneration, GPT2LMHeadModel, AutoModelForMaskedLM
+from transformers import BertTokenizer, T5Tokenizer, GPT2Tokenizer, AutoTokenizer
 import logging
 from definitions import *
 from typing import Tuple
@@ -22,8 +22,8 @@ class BertPENLI(nn.Module):
         """
         super(BertPENLI, self).__init__()
         # Load pretrained model
-        self.tokenizer = BertTokenizer.from_pretrained(pretrained)
-        self.bert = BertForMaskedLM.from_pretrained(pretrained)
+        self.tokenizer = AutoTokenizer.from_pretrained(pretrained)
+        self.bert = AutoModelForMaskedLM.from_pretrained(pretrained)
         self.config = self.bert.config
         self.softmax = nn.LogSoftmax(dim=-1)
 
