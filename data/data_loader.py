@@ -60,7 +60,7 @@ class ESNLIDataset(Dataset):
             token_type = 0
             token_type_ids = []
             labels = []
-            raw_input = f"{hypothesis} {sep_token} {mask_token} . {premise}"
+            raw_input = f"{hypothesis}{sep_token} {mask_token} . {premise}"
             encodings = self.tokenizer.encode(raw_input)
             for encoding in encodings:
                 token_type_ids.append(token_type)
@@ -170,7 +170,7 @@ class MNLIDataset(Dataset):
             token_type = 0
             token_type_ids = []
             labels = []
-            raw_input = f"{hypothesis} {sep_token} {mask_token} . {premise}"
+            raw_input = f"{hypothesis}{sep_token} {mask_token} . {premise}"
             encodings = self.tokenizer.encode(raw_input)
             for encoding in encodings:
                 token_type_ids.append(token_type)
