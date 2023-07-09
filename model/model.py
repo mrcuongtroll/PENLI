@@ -24,13 +24,14 @@ class BertPENLI(nn.Module):
         # Load pretrained model
         self.tokenizer = AutoTokenizer.from_pretrained(pretrained)
         self.bert = AutoModelForMaskedLM.from_pretrained(pretrained)
-        if self.bert.config.type_vocab_size == 1:
-            self.bert.config.type_vocab_size = 2  # BECAUSE REASONS
-            token_type_embed = self.bert.embeddings.token_type_embeddings
+        if hasattr(self.bert, 'roberta'):
+            self.bert.roberta.config.type_vocab_size = 2  # BECAUSE REASONS
+            token_type_embed = self.bert.roberta.embeddings.token_type_embeddings
             token_type_embed_weight = token_type_embed.weight.data
-            token_type_embed = nn.Embedding(self.bert.config.type_vocab_size, self.bert.config.hidden_size)
+            token_type_embed = nn.Embedding(self.bert.roberta.config.type_vocab_size,
+                                            self.bert.roberta.config.hidden_size)
             token_type_embed.weight.data = token_type_embed_weight.repeat(2, 1)
-            self.bert.embeddings.token_type_embeddings = token_type_embed
+            self.bert.roberta.embeddings.token_type_embeddings = token_type_embed
         self.config = self.bert.config
         self.softmax = nn.LogSoftmax(dim=-1)
 
