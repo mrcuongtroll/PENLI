@@ -7,16 +7,16 @@
   "freeze_plm": false,
   "grad_clip": 1.0,
   "rl": {
-    "freeze_plm": false,
     "num_epochs": 3,
     "grad_clip": 1,
     "num_prints": 10,
     "type": "A2C",
     "kwargs": {
+      "freeze_critic": true,
       "critic_head_hidden_size": 768,
       "gamma": 0.8,
-      "critic_coef": 1,
-      "entropy_coef": 0
+      "critic_coef": 0.5,
+      "entropy_coef": 1
     }
   },
   "model": {

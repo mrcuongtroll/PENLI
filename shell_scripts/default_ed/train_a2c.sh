@@ -1,7 +1,7 @@
 python train_rl.py \
      --device=cuda \
      --config=./configs/default_ed.json \
-     --seed=123 \
+     --seed=69420 \
      --best_ckpt \
      --use_finetuned_critic
 
