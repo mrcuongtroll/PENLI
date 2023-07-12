@@ -10,7 +10,7 @@ import numpy as np
 class A2C(nn.Module):
 
     def __init__(self, model: nn.Module, critic_model: nn.Module = None, critic_head_hidden_size: int = 768,
-                 gamma=0.99, critic_coef=0.5, entropy_coef=0.01,
+                 gamma=0.99, critic_coef=0.5, entropy_coef=0.01, freeze_critic=False,
                  device='cuda'):
         """
         :param model: A model, which will act as both the actor and the critic.
@@ -19,6 +19,7 @@ class A2C(nn.Module):
         :param gamma: Discount parameter to estimate rewards.
         :param critic_coef: Critic loss coefficient.
         :param entropy_coef: Entropy loss coefficient.
+        :param freeze_critic: Whether or not to freeze the critic model.
         :param device: 'cuda' or 'cpu'.
         """
         super(A2C, self).__init__()
@@ -30,12 +31,14 @@ class A2C(nn.Module):
             self.critic_model = critic_model
         else:
             self.critic_model = self.model
+        self.critic_model.freeze_plm(self.freeze_critic)
         self.critic_head = nn.Sequential(
             nn.Linear(model.config.vocab_size * 2, critic_head_hidden_size),
             nn.ReLU(),
             nn.Linear(critic_head_hidden_size, 1),
             nn.Sigmoid()
         )
+        self.freeze_critic = freeze_critic
         self.device = device
 
     def forward(self,

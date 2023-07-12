@@ -34,8 +34,6 @@ class RLTrainer:
         self.current_epoch = 0
         self.current_batch_idx = 0
         self.best_reward = 0
-        if self.config['rl']['freeze_plm']:
-            self.module.model.freeze_plm(freeze=True)
         os.makedirs(os.path.join(self.config['save_dir'], 'rl'), exist_ok=True)
 
     def train(self, resume=False):
@@ -55,7 +53,8 @@ class RLTrainer:
                     valid_loss = valid_result['loss']
                     valid_reward = valid_result['reward']
                     valid_result['state_dict'] = self.module.model.state_dict()
-                    valid_result['critic_model_state_dict'] = self.module.critic_model.state_dict()
+                    if not self.module.freeze_critic:
+                        valid_result['critic_model_state_dict'] = self.module.critic_model.state_dict()
                     valid_result['critic_head_state_dict'] = self.module.critic_head.state_dict()
                     valid_result['optimizer'] = self.optimizer.state_dict()
                     valid_result['lr_scheduler'] = self.lr_scheduler.state_dict() if self.lr_scheduler else None
@@ -163,7 +162,8 @@ class RLTrainer:
         checkpoint_path = os.path.join(self.config['save_dir'], 'rl', 'checkpoint_last.pt')
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
         self.module.model.load_state_dict(checkpoint['state_dict'])
-        self.module.critic_model.load_state_dict(checkpoint['critic_model_state_dict'])
+        if not self.module.freeze_critic:
+            self.module.critic_model.load_state_dict(checkpoint['critic_model_state_dict'])
         self.module.critic_head.load_state_dict(checkpoint['critic_head_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.optimizer.param_groups[0]['capturable'] = True
