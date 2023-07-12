@@ -26,6 +26,7 @@ class A2C(nn.Module):
         self.gamma = gamma
         self.critic_coef = critic_coef
         self.entropy_coef = entropy_coef
+        self.freeze_critic = freeze_critic
         self.model = model
         if critic_model is not None:
             self.critic_model = critic_model
@@ -38,7 +39,6 @@ class A2C(nn.Module):
             nn.Linear(critic_head_hidden_size, 1),
             nn.Sigmoid()
         )
-        self.freeze_critic = freeze_critic
         self.device = device
 
     def forward(self,
