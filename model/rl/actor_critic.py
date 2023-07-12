@@ -64,7 +64,7 @@ class A2C(nn.Module):
         critic_logits = torch.cat([critic_logits, policy_logits], dim=-1)
         # value: shape = (batch_size x output_seq_length x 1)
         value = self.critic_head(critic_logits)
-        return policy_logits, value
+        return policy, value
 
     def train_env_episode(self, batch):
         """
