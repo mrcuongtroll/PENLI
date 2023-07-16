@@ -16,7 +16,7 @@
       "critic_head_hidden_size": 768,
       "gamma": 0.8,
       "critic_coef": 0.5,
-      "entropy_coef": 0.2
+      "entropy_coef": 0
     }
   },
   "model": {
