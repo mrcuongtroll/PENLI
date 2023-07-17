@@ -2,7 +2,7 @@
   "name": "default_mlm",
   "n_gpu": 1,
   "save_dir": "./logs/",
-  "num_epochs": 8,
+  "num_epochs": 5,
   "num_prints": 10,
   "freeze_plm": false,
   "grad_clip": 1.0,
