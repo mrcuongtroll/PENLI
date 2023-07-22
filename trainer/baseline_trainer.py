@@ -83,10 +83,10 @@ class BaselineTrainer:
                 input_ids, token_type_ids, attention_mask, labels = batch['input_ids'], \
                                                                     batch['token_type_ids'], batch['attention_mask'], \
                                                                     batch['labels']
-                input_ids, token_type_ids, attention_mask, labels = (input_ids.to(self.device),
-                                                                     token_type_ids.to(self.device),
-                                                                     attention_mask.to(self.device)
-                                                                     )
+                input_ids, token_type_ids, attention_mask = (input_ids.to(self.device),
+                                                             token_type_ids.to(self.device),
+                                                             attention_mask.to(self.device)
+                                                             )
                 outputs = self.model(input_ids=input_ids,
                                      token_type_ids=token_type_ids,
                                      attention_mask=attention_mask,
@@ -135,10 +135,10 @@ class BaselineTrainer:
                     assert self.valid_loader.dataset.model_type == 0, "Set dataset's model_type to 0 when using Bert."
                     input_ids, token_type_ids, attention_mask, labels = batch['input_ids'], \
                                 batch['token_type_ids'], batch['attention_mask'], batch['labels']
-                    input_ids, token_type_ids, attention_mask, labels = (input_ids.to(self.device),
-                                                                         token_type_ids.to(self.device),
-                                                                         attention_mask.to(self.device)
-                                                                         )
+                    input_ids, token_type_ids, attention_mask = (input_ids.to(self.device),
+                                                                 token_type_ids.to(self.device),
+                                                                 attention_mask.to(self.device)
+                                                                 )
                     outputs = self.model(input_ids=input_ids,
                                          token_type_ids=token_type_ids,
                                          attention_mask=attention_mask,
