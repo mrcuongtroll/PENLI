@@ -231,8 +231,7 @@ def evaluate_baseline(model: nn.Module,
                                                                     batch['labels']
                 input_ids, token_type_ids, attention_mask, labels = (input_ids.to(device),
                                                                      token_type_ids.to(device),
-                                                                     attention_mask.to(device),
-                                                                     labels.to(device)
+                                                                     attention_mask.to(device)
                                                                      )
                 outputs = model(input_ids=input_ids,
                                 token_type_ids=token_type_ids,
