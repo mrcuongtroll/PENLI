@@ -253,6 +253,6 @@ def evaluate_baseline(model: nn.Module,
                             )
     ground_truth = np.asarray(ground_truth)
     predictions = np.asarray(predictions)
-    acc = (ground_truth == predictions).sum()
+    acc = (ground_truth == predictions).sum() / len(data_loader.dataset)
     result['acc'] = acc
     return result
