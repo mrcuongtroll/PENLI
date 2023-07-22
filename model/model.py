@@ -186,7 +186,6 @@ class MLMBaseline(nn.Module):
         outputs = self.plm(input_ids=input_ids,
                            token_type_ids=token_type_ids,
                            attention_mask=attention_mask,
-                           labels=labels,
                            **kwargs)
         outputs = self.classifier(outputs.pooler_output)
         outputs = self.softmax(outputs)
