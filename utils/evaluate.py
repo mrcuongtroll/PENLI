@@ -236,8 +236,7 @@ def evaluate_baseline(model: nn.Module,
                 labels = labels.to(device)
                 outputs = model(input_ids=input_ids,
                                 token_type_ids=token_type_ids,
-                                attention_mask=attention_mask,
-                                labels=labels)
+                                attention_mask=attention_mask)
             else:
                 raise RuntimeError("Cannot match model type with dataset type.")
             loss = criterion(outputs, labels)
