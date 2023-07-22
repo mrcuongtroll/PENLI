@@ -87,6 +87,7 @@ class BaselineTrainer:
                                                              token_type_ids.to(self.device),
                                                              attention_mask.to(self.device)
                                                              )
+                labels = labels.to(self.device)
                 outputs = self.model(input_ids=input_ids,
                                      token_type_ids=token_type_ids,
                                      attention_mask=attention_mask,
@@ -139,6 +140,7 @@ class BaselineTrainer:
                                                                  token_type_ids.to(self.device),
                                                                  attention_mask.to(self.device)
                                                                  )
+                    labels = labels.to(self.device)
                     outputs = self.model(input_ids=input_ids,
                                          token_type_ids=token_type_ids,
                                          attention_mask=attention_mask,
