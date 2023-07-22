@@ -114,6 +114,8 @@ class BaselineTrainer:
                             f"({(100. * batch_idx / len(self.train_loader)):.0f}%)] "
                             f"| Loss: {loss_meter.average():.5f} "
                             f"| Learning Rate: {lr}")
+        ground_truth = np.asarray(ground_truth)
+        predictions = np.asarray(predictions)
         acc = (ground_truth == predictions).sum()
         logger.info(f"Finished training epoch {epoch} "
                     f"| Loss: {loss_meter.average():.5f} "
@@ -158,6 +160,8 @@ class BaselineTrainer:
                                 f"({(100. * batch_idx / len(self.valid_loader)):.0f}%)] "
                                 f"| Loss: {loss_meter.average():.5f} "
                                 )
+        ground_truth = np.asarray(ground_truth)
+        predictions = np.asarray(predictions)
         acc = (ground_truth == predictions).sum()
         logger.info(f"Finished training epoch {epoch} "
                     f"| Loss: {loss_meter.average():.5f} "

@@ -251,6 +251,8 @@ def evaluate_baseline(model: nn.Module,
                             f"({(100. * batch_idx / len(data_loader)):.0f}%)] "
                             f"| Loss: {loss_meter.average():.5f} "
                             )
+    ground_truth = np.asarray(ground_truth)
+    predictions = np.asarray(predictions)
     acc = (ground_truth == predictions).sum()
     result['acc'] = acc
     return result
