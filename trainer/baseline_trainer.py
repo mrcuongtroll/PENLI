@@ -116,7 +116,7 @@ class BaselineTrainer:
                             f"| Learning Rate: {lr}")
         ground_truth = np.asarray(ground_truth)
         predictions = np.asarray(predictions)
-        acc = (ground_truth == predictions).sum()
+        acc = (ground_truth == predictions).sum() / len(self.train_loader.dataset)
         logger.info(f"Finished training epoch {epoch} "
                     f"| Loss: {loss_meter.average():.5f} "
                     f"| Accuracy: {acc:.4f} "
@@ -162,7 +162,7 @@ class BaselineTrainer:
                                 )
         ground_truth = np.asarray(ground_truth)
         predictions = np.asarray(predictions)
-        acc = (ground_truth == predictions).sum()
+        acc = (ground_truth == predictions).sum() / len(self.valid_loader.dataset)
         logger.info(f"Finished training epoch {epoch} "
                     f"| Loss: {loss_meter.average():.5f} "
                     f"| Accuracy: {acc:.4f} "
