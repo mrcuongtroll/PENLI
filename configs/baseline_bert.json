@@ -1,0 +1,62 @@
+{
+  "name": "baseline_bert",
+  "n_gpu": 1,
+  "save_dir": "./logs/",
+  "num_epochs": 5,
+  "num_prints": 10,
+  "freeze_plm": false,
+  "grad_clip": 1.0,
+  "model": {
+    "type": "MLMBaseline",
+    "kwargs": {
+      "pretrained": "bert-base-uncased"
+    }
+  },
+  "train_loader": {
+    "type": "create_nli_data_loader_for_baseline",
+    "kwargs": {
+      "file_path": "./datasets/e-SNLI/esnli_train_1.csv",
+      "max_seq_length": 512,
+      "model_type": 0,
+      "batch_size": 16,
+      "shuffle": false
+    }
+  },
+  "valid_loader": {
+    "type": "create_nli_data_loader_for_baseline",
+    "kwargs": {
+      "file_path": "./datasets/e-SNLI/esnli_dev.csv",
+      "max_seq_length": 512,
+      "model_type": 0,
+      "batch_size": 16,
+      "shuffle": false
+    }
+  },
+  "test_loader": {
+    "type": "create_nli_data_loader_for_baseline",
+    "kwargs": {
+      "file_path": "./datasets/e-SNLI/esnli_test.csv",
+      "max_seq_length": 512,
+      "model_type": 0,
+      "batch_size": 16,
+      "shuffle": false
+    }
+  },
+  "loss": {
+    "type": "NLLLoss",
+    "kwargs": {}
+  },
+  "optimizer": {
+    "type": "AdamW",
+    "kwargs": {
+      "lr": 1e-4
+    }
+  },
+  "logging": {
+    "type": "setup_logging",
+    "kwargs": {
+      "save_dir": "./logs/",
+      "log_config": "./logger/logging_config.json"
+    }
+  }
+}
