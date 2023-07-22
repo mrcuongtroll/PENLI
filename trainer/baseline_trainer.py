@@ -85,8 +85,7 @@ class BaselineTrainer:
                                                                     batch['labels']
                 input_ids, token_type_ids, attention_mask, labels = (input_ids.to(self.device),
                                                                      token_type_ids.to(self.device),
-                                                                     attention_mask.to(self.device),
-                                                                     labels.to(self.device)
+                                                                     attention_mask.to(self.device)
                                                                      )
                 outputs = self.model(input_ids=input_ids,
                                      token_type_ids=token_type_ids,
@@ -138,8 +137,7 @@ class BaselineTrainer:
                                 batch['token_type_ids'], batch['attention_mask'], batch['labels']
                     input_ids, token_type_ids, attention_mask, labels = (input_ids.to(self.device),
                                                                          token_type_ids.to(self.device),
-                                                                         attention_mask.to(self.device),
-                                                                         labels.to(self.device)
+                                                                         attention_mask.to(self.device)
                                                                          )
                     outputs = self.model(input_ids=input_ids,
                                          token_type_ids=token_type_ids,
