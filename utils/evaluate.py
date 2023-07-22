@@ -229,10 +229,11 @@ def evaluate_baseline(model: nn.Module,
                 input_ids, token_type_ids, attention_mask, labels = batch['input_ids'], \
                                                                     batch['token_type_ids'], batch['attention_mask'], \
                                                                     batch['labels']
-                input_ids, token_type_ids, attention_mask, labels = (input_ids.to(device),
-                                                                     token_type_ids.to(device),
-                                                                     attention_mask.to(device)
-                                                                     )
+                input_ids, token_type_ids, attention_mask = (input_ids.to(device),
+                                                             token_type_ids.to(device),
+                                                             attention_mask.to(device)
+                                                             )
+                labels = labels.to(device)
                 outputs = model(input_ids=input_ids,
                                 token_type_ids=token_type_ids,
                                 attention_mask=attention_mask,
