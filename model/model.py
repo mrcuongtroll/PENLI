@@ -182,7 +182,7 @@ class MLMBaseline(nn.Module):
         self.classifier = nn.Linear(self.config.hidden_size, 3)
         self.softmax = nn.LogSoftmax(dim=-1)
 
-    def forward(self, input_ids, token_type_ids, attention_mask, labels=None, **kwargs):
+    def forward(self, input_ids, token_type_ids, attention_mask, **kwargs):
         outputs = self.plm(input_ids=input_ids,
                            token_type_ids=token_type_ids,
                            attention_mask=attention_mask,
