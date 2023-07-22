@@ -90,8 +90,7 @@ class BaselineTrainer:
                 labels = labels.to(self.device)
                 outputs = self.model(input_ids=input_ids,
                                      token_type_ids=token_type_ids,
-                                     attention_mask=attention_mask,
-                                     labels=labels)
+                                     attention_mask=attention_mask)
             else:
                 raise RuntimeError(f"Baseline not implemented: {type(self.model)}")
             loss = self.criterion(outputs, labels)
@@ -143,8 +142,7 @@ class BaselineTrainer:
                     labels = labels.to(self.device)
                     outputs = self.model(input_ids=input_ids,
                                          token_type_ids=token_type_ids,
-                                         attention_mask=attention_mask,
-                                         labels=labels)
+                                         attention_mask=attention_mask)
                 else:
                     raise RuntimeError("Baseline not implemented")
                 loss = self.criterion(outputs, labels)
