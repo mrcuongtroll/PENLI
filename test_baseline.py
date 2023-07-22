@@ -51,7 +51,7 @@ def main(args):
     if args.test_dataset_path is not None:
         config['test_loader']['kwargs']['file_path'] = args.test_dataset_path
     logger.info(f"Testing the model on {config['test_loader']['kwargs']['file_path']}...")
-    test_loader = config.init_obj(data_loader, 'test_loader', tokenizer=model.tokenizer, use_explanation=True)
+    test_loader = config.init_obj(data_loader, 'test_loader', tokenizer=model.tokenizer)
     criterion = config.init_obj(nn, "loss")
     results = evaluate_baseline(model=model,
                                 data_loader=test_loader,
