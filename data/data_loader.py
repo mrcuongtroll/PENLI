@@ -4,7 +4,7 @@ from torch.utils.data import Dataset, DataLoader, Sampler
 import pandas as pd
 import json
 import os
-from transformers import PreTrainedTokenizer, DataCollatorForTokenClassification, DataCollatorForSeq2Seq
+from transformers import PreTrainedTokenizer, DataCollatorWithPadding
 from .data_collator import GeneralDataCollator
 from definitions import *
 from utils.utils import most_frequent
@@ -126,6 +126,68 @@ class ESNLIDataset(Dataset):
                         'labels': labels}
 
 
+class ESNLIDatasetForBaseline(Dataset):
+
+    def __init__(self,
+                 tokenizer: PreTrainedTokenizer,
+                 file_path: str = None,
+                 max_seq_length: int = 512,
+                 model_type: int = 0
+                 ):
+        """
+        :param file_path: (Type: str) Path to the file containing the data. It must be in csv format.
+        :param tokenizer: (Type: PreTrainedTokenizer) The tokenizer object used to encode the data.
+        :param max_seq_length: (Type: int) The maximum number of tokens for each sentence.
+        :param model_type: (Type: int): 0: MLM, 1: Autoregressive Decoder, 2: Encoder-Decoder.
+        """
+        super(ESNLIDatasetForBaseline, self).__init__()
+        self.data = pd.read_csv(file_path)
+        self.len = len(self.data)
+        self.tokenizer = tokenizer
+        self.max_seq_length = max_seq_length
+        assert model_type in (0, 1, 2), f"Invalid model type: {model_type}. Please choose from " \
+                                        f"(0: Masked Language Model, 1: Autoregressive Decoder, 2: Encoder-Decoder)."
+        self.model_type = model_type
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, idx):
+        data = self.data.iloc[idx]
+        premise = str(data['Sentence1'])
+        hypothesis = str(data['Sentence2'])
+        label = str(data['gold_label'])
+        explanation = str(data['Explanation_1'])
+        label = CLASSIFICATION_LABEL_MAPPING[label]
+        if self.model_type == 0:
+            cls_token_id = self.tokenizer.cls_token_id
+            sep_token_id = self.tokenizer.sep_token_id
+            sep_token = self.tokenizer.sep_token
+            mask_token_id = self.tokenizer.mask_token_id
+            ignored_token_id = IGNORE_ID
+            mask_token = self.tokenizer.mask_token
+            token_type = 0
+            token_type_ids = []
+            raw_input = f"{hypothesis}{sep_token}{premise}"
+            encodings = self.tokenizer.encode(raw_input)
+            for encoding in encodings:
+                token_type_ids.append(token_type)
+                if encoding == sep_token_id:
+                    token_type = 1
+            encodings = encodings[:min(len(encodings), self.max_seq_length)]
+            token_type_ids = token_type_ids[:min(len(token_type_ids), self.max_seq_length)]
+            return {'input_ids': encodings,
+                    'token_type_ids': token_type_ids,
+                    'label': label}
+        elif self.model_type == 1:
+            raise RuntimeError("model_type=1 has not been implemented for baseline datasets")
+        elif self.model_type == 2:
+            encodings = None
+            return {'input_ids': encodings,
+                    'token_type_ids': token_type_ids,
+                    'label': label}
+
+
 class MNLIDataset(Dataset):
 
     def __init__(self,
@@ -213,6 +275,73 @@ class MNLIDataset(Dataset):
                     'labels': labels}
 
 
+class MNLIDatasetForBaseline(Dataset):
+
+    def __init__(self,
+                 tokenizer: PreTrainedTokenizer,
+                 file_path: str = None,
+                 max_seq_length: int = 512,
+                 model_type: int = 0
+                 ):
+        """
+        :param file_path: (Type: str) Path to the file containing the data. It must be in json or jsonl format.
+        :param tokenizer: (Type: PreTrainedTokenizer) The tokenizer object used to encode the data.
+        :param max_seq_length: (Type: int) The maximum number of tokens for each sentence.
+        :param model_type: (Type: int): 0: MLM, 1: Autoregressive Decoder, 2: Encoder-Decoder.
+        """
+        super(MNLIDatasetForBaseline, self).__init__()
+        self.tokenizer = tokenizer
+        with open(file_path, 'r', encoding='utf8') as f:
+            self.data = f.readlines()
+        self.len = len(self.data)
+        self.max_seq_length = max_seq_length
+        assert model_type in (0, 1, 2), f"Invalid model type: {model_type}. Please choose from " \
+                                        f"(0: Masked Language Model, 1: Autoregressive Decoder, 2: Encoder-Decoder)."
+        self.model_type = model_type
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, idx):
+        data = json.loads(self.data[idx])
+        premise = str(data['sentence1'])
+        hypothesis = str(data['sentence2'])
+        label = str(data['gold_label'])
+        if label not in CLASSIFICATION_LABEL_MAPPING:
+            label = most_frequent(list(map(str, data['annotator_labels'])))
+        label = CLASSIFICATION_LABEL_MAPPING[label]
+        if self.model_type == 0:
+            cls_token_id = self.tokenizer.cls_token_id
+            sep_token_id = self.tokenizer.sep_token_id
+            sep_token = self.tokenizer.sep_token
+            mask_token_id = self.tokenizer.mask_token_id
+            ignored_token_id = IGNORE_ID
+            mask_token = self.tokenizer.mask_token
+            token_type = 0
+            token_type_ids = []
+            raw_input = f"{hypothesis}{sep_token}{premise}"
+            encodings = self.tokenizer.encode(raw_input)
+            for encoding in encodings:
+                token_type_ids.append(token_type)
+                if encoding == sep_token_id:
+                    token_type = 1
+            encodings = encodings[:min(len(encodings), self.max_seq_length)]
+            token_type_ids = token_type_ids[:min(len(token_type_ids), self.max_seq_length)]
+            return {'input_ids': encodings,
+                    'token_type_ids': token_type_ids,
+                    'label': label}
+        elif self.model_type == 1:
+            raise RuntimeError("model_type=1 has not been implemented for baseline datasets")
+        elif self.model_type == 2:
+            raw_inputs = f"Sentence 1: {premise}. Sentence 2: {hypothesis}. " \
+                         f"Given sentence 1, is sentence 2 true, neutral, or false?"
+            encodings = self.tokenizer.encode(raw_inputs)
+            mapped_label = f"{GENERATIVE_LABEL_MAPPING[label]}"
+            encodings = encodings[:min(len(encodings), self.max_seq_length)]
+            return {'input_ids': encodings,
+                    'label': label}
+
+
 class ResumableRandomSampler(Sampler):
     r"""Samples elements randomly. If without replacement, then sample from a shuffled dataset.
     If with replacement, then user can specify :attr:`num_samples` to draw.
@@ -280,13 +409,37 @@ def create_nli_data_loader(tokenizer: PreTrainedTokenizer,
                               file_path=file_path,
                               max_seq_length=max_seq_length,
                               model_type=model_type)
+    # LEGACY CODE
     # if model_type == 0:
     #     collator = DataCollatorForTokenClassification(tokenizer, padding="max_length")
     # elif model_type == 2:
     #     collator = DataCollatorForSeq2Seq(tokenizer, padding=True)
     # else:
     #     raise RuntimeError(f"Invalid model type: {model_type}")
+    # LEGACY CODE
     collator = GeneralDataCollator(tokenizer=tokenizer)
+    sampler = ResumableRandomSampler(data_source=dataset, seed=seed)
+    data_loader = DataLoader(dataset, collate_fn=collator, sampler=sampler, **kwargs)
+    return data_loader
+
+
+def create_nli_data_loader_for_baseline(tokenizer: PreTrainedTokenizer,
+                                        file_path: str = None,
+                                        max_seq_length: int = 512,
+                                        model_type: int = 0,
+                                        seed=69420,
+                                        **kwargs):
+    if 'esnli' in file_path:
+        dataset = ESNLIDatasetForBaseline(tokenizer=tokenizer,
+                                          file_path=file_path,
+                                          max_seq_length=max_seq_length,
+                                          model_type=model_type)
+    elif 'multinli' in file_path:
+        dataset = MNLIDatasetForBaseline(tokenizer=tokenizer,
+                                         file_path=file_path,
+                                         max_seq_length=max_seq_length,
+                                         model_type=model_type)
+    collator = DataCollatorWithPadding(tokenizer=tokenizer)
     sampler = ResumableRandomSampler(data_source=dataset, seed=seed)
     data_loader = DataLoader(dataset, collate_fn=collator, sampler=sampler, **kwargs)
     return data_loader

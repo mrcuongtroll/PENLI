@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import BertForMaskedLM, T5ForConditionalGeneration, GPT2LMHeadModel, AutoModelForMaskedLM
+from transformers import BertForMaskedLM, T5ForConditionalGeneration, GPT2LMHeadModel, AutoModelForMaskedLM, AutoModel
 from transformers import BertTokenizer, T5Tokenizer, GPT2Tokenizer, AutoTokenizer
 import logging
 from definitions import *
@@ -155,3 +155,56 @@ class GPTPENLI(nn.Module):
         self.tokenizer = GPT2Tokenizer.from_pretrained(path)
         self.gpt = GPT2LMHeadModel.from_pretrained(path)
         self.config = self.gpt.config
+
+
+class MLMBaseline(nn.Module):
+
+    def __init__(self,
+                 pretrained: str = PLM[0]
+                 ):
+        """
+        :param pretrained: HuggingFace's pretrained model's name. Please refer to
+                           (https://huggingface.co/transformers/v3.3.1/pretrained_models.html).
+        """
+        super(MLMBaseline, self).__init__()
+        # Load pretrained model
+        self.tokenizer = AutoTokenizer.from_pretrained(pretrained)
+        self.plm = AutoModel.from_pretrained(pretrained)
+        if self.plm.config.type_vocab_size == 1:
+            self.plm.config.type_vocab_size = 2  # BECAUSE REASONS
+            token_type_embed = self.plm.embeddings.token_type_embeddings
+            token_type_embed_weight = token_type_embed.weight.data
+            token_type_embed = nn.Embedding(self.plm.config.type_vocab_size,
+                                            self.plm.config.hidden_size)
+            token_type_embed.weight.data = token_type_embed_weight.repeat(2, 1)
+            self.plm.embeddings.token_type_embeddings = token_type_embed
+        self.config = self.plm.config
+        self.classifier = nn.Linear(self.config.hidden_size, 3)
+        self.softmax = nn.LogSoftmax(dim=-1)
+
+    def forward(self, input_ids, token_type_ids, attention_mask, labels=None, **kwargs):
+        outputs = self.plm(input_ids=input_ids,
+                           token_type_ids=token_type_ids,
+                           attention_mask=attention_mask,
+                           labels=labels,
+                           **kwargs)
+        outputs = self.classifier(outputs.pooler_output)
+        outputs = self.softmax(outputs)
+        return outputs
+
+    def freeze_plm(self, freeze=True):
+        for name, param in self.plm.named_parameters():
+            if "prompt" not in name:
+                param.requires_grad = not freeze
+
+    def save_plm(self, path):
+        self.plm.save_pretrained(path)
+        self.tokenizer.save_pretrained(path)
+
+    def load_plm(self, path):
+        del self.tokenizer
+        del self.plm
+        del self.config
+        self.tokenizer = BertTokenizer.from_pretrained(path)
+        self.plm = BertForMaskedLM.from_pretrained(path)
+        self.config = self.plm.config

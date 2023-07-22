@@ -114,7 +114,7 @@ def compute_autoregressive_results(tokenizer: PreTrainedTokenizerBase,
 
 def evaluate_model(model: nn.Module,
                    data_loader: DataLoader,
-                   criterion: Optimizer,
+                   criterion: nn.Module,
                    config: ConfigParser,
                    use_explanation: bool = False,
                    device: str = 'cuda'):
@@ -207,4 +207,51 @@ def evaluate_model(model: nn.Module,
         metrics = compute_autoregressive_results(model.tokenizer, predictions, ground_truth)
         result['inference_acc'] = metrics['inference_acc']
         result['generative_acc'] = metrics['generative_acc']
+    return result
+
+
+def evaluate_baseline(model: nn.Module,
+                      data_loader: DataLoader,
+                      criterion: nn.Module,
+                      config: ConfigParser,
+                      device: str = 'cuda'):
+    model.to(device)
+    model.eval()
+    result = None
+    loss_meter = AverageMeter()
+    ground_truth = []
+    predictions = []
+    num_batches_per_print = len(data_loader) // config['num_prints']
+    with torch.no_grad():
+        for batch_idx, batch in enumerate(data_loader):
+            if isinstance(model, BertPENLI):
+                assert data_loader.dataset.model_type == 0, "Set dataset's model_type to 0 when using Bert."
+                input_ids, token_type_ids, attention_mask, labels = batch['input_ids'], \
+                                                                    batch['token_type_ids'], batch['attention_mask'], \
+                                                                    batch['labels']
+                input_ids, token_type_ids, attention_mask, labels = (input_ids.to(device),
+                                                                     token_type_ids.to(device),
+                                                                     attention_mask.to(device),
+                                                                     labels.to(device)
+                                                                     )
+                outputs = model(input_ids=input_ids,
+                                token_type_ids=token_type_ids,
+                                attention_mask=attention_mask,
+                                labels=labels)
+            else:
+                raise RuntimeError("Cannot match model type with dataset type.")
+            loss = criterion(outputs, labels)
+            pred = torch.argmax(outputs, dim=-1)
+            predictions.extend(pred.detach().cpu().numpy())
+            ground_truth.extend(labels.detach().cpu().numpy())
+            loss_meter.update(loss.item())
+            result = {"loss": loss_meter.average()}
+            if (batch_idx + 1) % num_batches_per_print == 0:
+                logger.info(f"Evaluating "
+                            f"[{batch_idx * data_loader.batch_size}/{len(data_loader.dataset)} "
+                            f"({(100. * batch_idx / len(data_loader)):.0f}%)] "
+                            f"| Loss: {loss_meter.average():.5f} "
+                            )
+    acc = (ground_truth == predictions).sum()
+    result['acc'] = acc
     return result

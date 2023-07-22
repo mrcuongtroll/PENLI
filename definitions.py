@@ -17,6 +17,7 @@ E_SNLI_DIR = os.path.join(DATASETS_DIR, 'e-SNLI')
 DATASET_TYPES = ('train', 'training', 'test', 'testing', 'dev', 'valid', 'development', 'validation')
 MLM_LABEL_MAPPING = {'neutral': 'Maybe', 'contradiction': 'No', 'entailment': 'Yes'}
 GENERATIVE_LABEL_MAPPING = {'neutral': 'neutral', 'contradiction': 'false', 'entailment': 'true'}
+CLASSIFICATION_LABEL_MAPPING = {'neutral': 0, 'contradiction': 1, 'entailment': 2}
 IGNORE_ID = -100
 
 
