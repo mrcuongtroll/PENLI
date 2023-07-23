@@ -224,7 +224,7 @@ def evaluate_baseline(model: nn.Module,
     num_batches_per_print = len(data_loader) // config['num_prints']
     with torch.no_grad():
         for batch_idx, batch in enumerate(data_loader):
-            if isinstance(model, BertPENLI):
+            if isinstance(model, MLMBaseline):
                 assert data_loader.dataset.model_type == 0, "Set dataset's model_type to 0 when using Bert."
                 input_ids, token_type_ids, attention_mask, labels = batch['input_ids'], \
                                                                     batch['token_type_ids'], batch['attention_mask'], \
