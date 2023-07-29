@@ -32,7 +32,13 @@ class ESNLIDataset(Dataset):
         :param use_explanation: (Type: bool) Whether to return explanations or not.
         """
         super(ESNLIDataset, self).__init__()
-        self.data = pd.read_csv(file_path)
+        if isinstance(file_path, list):
+            data = []
+            for path in file_path:
+                data.append(pd.read_csv(path))
+                self.data = pd.concat(data)
+        else:
+            self.data = pd.read_csv(file_path)
         self.len = len(self.data)
         self.tokenizer = tokenizer
         self.max_seq_length = max_seq_length
@@ -141,7 +147,13 @@ class ESNLIDatasetForBaseline(Dataset):
         :param model_type: (Type: int): 0: MLM, 1: Autoregressive Decoder, 2: Encoder-Decoder.
         """
         super(ESNLIDatasetForBaseline, self).__init__()
-        self.data = pd.read_csv(file_path)
+        if isinstance(file_path, list):
+            data = []
+            for path in file_path:
+                data.append(pd.read_csv(path))
+                self.data = pd.concat(data)
+        else:
+            self.data = pd.read_csv(file_path)
         self.len = len(self.data)
         self.tokenizer = tokenizer
         self.max_seq_length = max_seq_length
