@@ -15,7 +15,10 @@
   "train_loader": {
     "type": "create_nli_data_loader",
     "kwargs": {
-      "file_path": "./datasets/e-SNLI/esnli_train_1.csv",
+      "file_path": [
+        "./datasets/e-SNLI/esnli_train_1.csv",
+        "./datasets/e-SNLI/esnli_train_2.csv"
+      ],
       "max_seq_length": 512,
       "model_type": 1,
       "batch_size": 8,
