@@ -19,13 +19,13 @@ class ESNLIDataset(Dataset):
 
     def __init__(self,
                  tokenizer: PreTrainedTokenizer,
-                 file_path: str = None,
+                 file_path,
                  max_seq_length: int = 512,
                  model_type: int = 0,
                  use_explanation: bool = False
                  ):
         """
-        :param file_path: (Type: str) Path to the file containing the data. It must be in csv format.
+        :param file_path: Path to the file containing the data. It must be in csv format.
         :param tokenizer: (Type: PreTrainedTokenizer) The tokenizer object used to encode the data.
         :param max_seq_length: (Type: int) The maximum number of tokens for each sentence.
         :param model_type: (Type: int): 0: MLM, 1: Autoregressive Decoder, 2: Encoder-Decoder.
@@ -136,12 +136,12 @@ class ESNLIDatasetForBaseline(Dataset):
 
     def __init__(self,
                  tokenizer: PreTrainedTokenizer,
-                 file_path: str = None,
+                 file_path,
                  max_seq_length: int = 512,
                  model_type: int = 0
                  ):
         """
-        :param file_path: (Type: str) Path to the file containing the data. It must be in csv format.
+        :param file_path: Path to the file containing the data. It must be in csv format.
         :param tokenizer: (Type: PreTrainedTokenizer) The tokenizer object used to encode the data.
         :param max_seq_length: (Type: int) The maximum number of tokens for each sentence.
         :param model_type: (Type: int): 0: MLM, 1: Autoregressive Decoder, 2: Encoder-Decoder.
@@ -195,6 +195,7 @@ class ESNLIDatasetForBaseline(Dataset):
             raise RuntimeError("model_type=1 has not been implemented for baseline datasets")
         elif self.model_type == 2:
             encodings = None
+            token_type_ids= None
             return {'input_ids': encodings,
                     'token_type_ids': token_type_ids,
                     'label': label}
@@ -410,7 +411,7 @@ def create_nli_data_loader(tokenizer: PreTrainedTokenizer,
                            use_explanation: bool = False,
                            seed=69420,
                            **kwargs):
-    if 'esnli' in file_path:
+    if 'esnli' in file_path or (isinstance(file_path, list) and 'esnli' in file_path[0]):
         dataset = ESNLIDataset(tokenizer=tokenizer,
                                file_path=file_path,
                                max_seq_length=max_seq_length,
@@ -441,7 +442,7 @@ def create_nli_data_loader_for_baseline(tokenizer: PreTrainedTokenizer,
                                         model_type: int = 0,
                                         seed=69420,
                                         **kwargs):
-    if 'esnli' in file_path:
+    if 'esnli' in file_path or (isinstance(file_path, list) and 'esnli' in file_path[0]):
         dataset = ESNLIDatasetForBaseline(tokenizer=tokenizer,
                                           file_path=file_path,
                                           max_seq_length=max_seq_length,
