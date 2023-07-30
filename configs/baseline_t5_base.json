@@ -1,5 +1,5 @@
 {
-  "name": "baseline_t5-base",
+  "name": "baseline_t5",
   "n_gpu": 1,
   "save_dir": "./logs/",
   "num_epochs": 5,
