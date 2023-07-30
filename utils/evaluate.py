@@ -224,21 +224,9 @@ def evaluate_baseline(model: nn.Module,
     num_batches_per_print = len(data_loader) // config['num_prints']
     with torch.no_grad():
         for batch_idx, batch in enumerate(data_loader):
-            if isinstance(model, MLMBaseline):
-                assert data_loader.dataset.model_type == 0, "Set dataset's model_type to 0 when using Bert."
-                input_ids, token_type_ids, attention_mask, labels = batch['input_ids'], \
-                                                                    batch['token_type_ids'], batch['attention_mask'], \
-                                                                    batch['labels']
-                input_ids, token_type_ids, attention_mask = (input_ids.to(device),
-                                                             token_type_ids.to(device),
-                                                             attention_mask.to(device)
-                                                             )
-                labels = labels.to(device)
-                outputs = model(input_ids=input_ids,
-                                token_type_ids=token_type_ids,
-                                attention_mask=attention_mask)
-            else:
-                raise RuntimeError("Cannot match model type with dataset type.")
+            inputs = {k: batch[k].to(device) for k in batch if k != 'labels'}
+            labels = batch['labels'].to(device)
+            outputs = model(**inputs)
             loss = criterion(outputs, labels)
             pred = torch.argmax(outputs, dim=-1)
             predictions.extend(pred.detach().cpu().numpy())

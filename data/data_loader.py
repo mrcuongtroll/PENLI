@@ -169,15 +169,10 @@ class ESNLIDatasetForBaseline(Dataset):
         premise = str(data['Sentence1'])
         hypothesis = str(data['Sentence2'])
         label = str(data['gold_label'])
-        explanation = str(data['Explanation_1'])
         label = CLASSIFICATION_LABEL_MAPPING[label]
         if self.model_type == 0:
-            cls_token_id = self.tokenizer.cls_token_id
             sep_token_id = self.tokenizer.sep_token_id
             sep_token = self.tokenizer.sep_token
-            mask_token_id = self.tokenizer.mask_token_id
-            ignored_token_id = IGNORE_ID
-            mask_token = self.tokenizer.mask_token
             token_type = 0
             token_type_ids = []
             raw_input = f"{hypothesis}{sep_token}{premise}"
@@ -194,10 +189,11 @@ class ESNLIDatasetForBaseline(Dataset):
         elif self.model_type == 1:
             raise RuntimeError("model_type=1 has not been implemented for baseline datasets")
         elif self.model_type == 2:
-            encodings = None
-            token_type_ids= None
+            sep_token = self.tokenizer.sep_token
+            raw_input = f"{hypothesis}{sep_token}{premise}"
+            encodings = self.tokenizer.encode(raw_input)
+            encodings = encodings[:min(len(encodings), self.max_seq_length)]
             return {'input_ids': encodings,
-                    'token_type_ids': token_type_ids,
                     'label': label}
 
 
@@ -324,12 +320,8 @@ class MNLIDatasetForBaseline(Dataset):
             label = most_frequent(list(map(str, data['annotator_labels'])))
         label = CLASSIFICATION_LABEL_MAPPING[label]
         if self.model_type == 0:
-            cls_token_id = self.tokenizer.cls_token_id
             sep_token_id = self.tokenizer.sep_token_id
             sep_token = self.tokenizer.sep_token
-            mask_token_id = self.tokenizer.mask_token_id
-            ignored_token_id = IGNORE_ID
-            mask_token = self.tokenizer.mask_token
             token_type = 0
             token_type_ids = []
             raw_input = f"{hypothesis}{sep_token}{premise}"
@@ -346,10 +338,9 @@ class MNLIDatasetForBaseline(Dataset):
         elif self.model_type == 1:
             raise RuntimeError("model_type=1 has not been implemented for baseline datasets")
         elif self.model_type == 2:
-            raw_inputs = f"Sentence 1: {premise}. Sentence 2: {hypothesis}. " \
-                         f"Given sentence 1, is sentence 2 true, neutral, or false?"
-            encodings = self.tokenizer.encode(raw_inputs)
-            mapped_label = f"{GENERATIVE_LABEL_MAPPING[label]}"
+            sep_token = self.tokenizer.sep_token
+            raw_input = f"{hypothesis}{sep_token}{premise}"
+            encodings = self.tokenizer.encode(raw_input)
             encodings = encodings[:min(len(encodings), self.max_seq_length)]
             return {'input_ids': encodings,
                     'label': label}
