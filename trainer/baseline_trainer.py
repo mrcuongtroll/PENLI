@@ -78,21 +78,9 @@ class BaselineTrainer:
         predictions = []
         num_batches_per_print = len(self.train_loader) // self.config['num_prints']
         for batch_idx, batch in enumerate(self.train_loader):
-            if isinstance(self.model, MLMBaseline):
-                assert self.train_loader.dataset.model_type == 0, "Set dataset's model_type to 0 when using MLM."
-                input_ids, token_type_ids, attention_mask, labels = batch['input_ids'], \
-                                                                    batch['token_type_ids'], batch['attention_mask'], \
-                                                                    batch['labels']
-                input_ids, token_type_ids, attention_mask = (input_ids.to(self.device),
-                                                             token_type_ids.to(self.device),
-                                                             attention_mask.to(self.device)
-                                                             )
-                labels = labels.to(self.device)
-                outputs = self.model(input_ids=input_ids,
-                                     token_type_ids=token_type_ids,
-                                     attention_mask=attention_mask)
-            else:
-                raise RuntimeError(f"Baseline not implemented: {type(self.model)}")
+            inputs = {k: batch[k].to(self.device) for k in batch if k != 'labels'}
+            labels = batch['labels'].to(self.device)
+            outputs = self.model(**inputs)
             loss = self.criterion(outputs, labels)
             loss.backward()
             if self.config['grad_clip'] is not None:
@@ -133,20 +121,9 @@ class BaselineTrainer:
         num_batches_per_print = len(self.valid_loader) // self.config['num_prints']
         with torch.no_grad():
             for batch_idx, batch in enumerate(self.valid_loader):
-                if isinstance(self.model, MLMBaseline):
-                    assert self.valid_loader.dataset.model_type == 0, "Set dataset's model_type to 0 when using Bert."
-                    input_ids, token_type_ids, attention_mask, labels = batch['input_ids'], \
-                                batch['token_type_ids'], batch['attention_mask'], batch['labels']
-                    input_ids, token_type_ids, attention_mask = (input_ids.to(self.device),
-                                                                 token_type_ids.to(self.device),
-                                                                 attention_mask.to(self.device)
-                                                                 )
-                    labels = labels.to(self.device)
-                    outputs = self.model(input_ids=input_ids,
-                                         token_type_ids=token_type_ids,
-                                         attention_mask=attention_mask)
-                else:
-                    raise RuntimeError("Baseline not implemented")
+                inputs = {k: batch[k].to(self.device) for k in batch if k != 'labels'}
+                labels = batch['labels'].to(self.device)
+                outputs = self.model(**inputs)
                 loss = self.criterion(outputs, labels)
                 pred = torch.argmax(outputs, dim=-1)
                 predictions.extend(pred.detach().cpu().numpy())

@@ -65,7 +65,7 @@
   "optimizer": {
     "type": "AdamW",
     "kwargs": {
-      "lr": 1e-5
+      "lr": 3e-6
     }
   },
   "logging": {

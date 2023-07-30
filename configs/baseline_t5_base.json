@@ -1,5 +1,5 @@
 {
-  "name": "default_roberta",
+  "name": "baseline_t5-base",
   "n_gpu": 1,
   "save_dir": "./logs/",
   "num_epochs": 5,
@@ -7,40 +7,40 @@
   "freeze_plm": false,
   "grad_clip": 1.0,
   "model": {
-    "type": "BertPENLI",
+    "type": "Seq2seqBaseline",
     "kwargs": {
-      "pretrained": "roberta-base"
+      "pretrained": "t5-base"
     }
   },
   "train_loader": {
-    "type": "create_nli_data_loader",
+    "type": "create_nli_data_loader_for_baseline",
     "kwargs": {
       "file_path": [
         "./datasets/e-SNLI/esnli_train_1.csv",
         "./datasets/e-SNLI/esnli_train_2.csv"
       ],
       "max_seq_length": 512,
-      "model_type": 0,
+      "model_type": 2,
       "batch_size": 8,
       "shuffle": false
     }
   },
   "valid_loader": {
-    "type": "create_nli_data_loader",
+    "type": "create_nli_data_loader_for_baseline",
     "kwargs": {
       "file_path": "./datasets/e-SNLI/esnli_dev.csv",
       "max_seq_length": 512,
-      "model_type": 0,
+      "model_type": 2,
       "batch_size": 16,
       "shuffle": false
     }
   },
   "test_loader": {
-    "type": "create_nli_data_loader",
+    "type": "create_nli_data_loader_for_baseline",
     "kwargs": {
       "file_path": "./datasets/e-SNLI/esnli_test.csv",
       "max_seq_length": 512,
-      "model_type": 0,
+      "model_type": 2,
       "batch_size": 16,
       "shuffle": false
     }
@@ -52,7 +52,7 @@
   "optimizer": {
     "type": "AdamW",
     "kwargs": {
-      "lr": 3e-6
+      "lr": 1e-5
     }
   },
   "logging": {

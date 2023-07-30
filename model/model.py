@@ -204,6 +204,56 @@ class MLMBaseline(nn.Module):
         del self.tokenizer
         del self.plm
         del self.config
-        self.tokenizer = BertTokenizer.from_pretrained(path)
-        self.plm = BertForMaskedLM.from_pretrained(path)
+        self.tokenizer = AutoTokenizer.from_pretrained(path)
+        self.plm = AutoModel.from_pretrained(path)
+        self.config = self.plm.config
+
+
+class Seq2seqBaseline(nn.Module):
+
+    def __init__(self,
+                 pretrained: str = PLM[0]
+                 ):
+        """
+        :param pretrained: HuggingFace's pretrained model's name. Please refer to
+                           (https://huggingface.co/transformers/v3.3.1/pretrained_models.html).
+        """
+        super(Seq2seqBaseline, self).__init__()
+        # Load pretrained model
+        self.tokenizer = AutoTokenizer.from_pretrained(pretrained)
+        self.plm = AutoModel.from_pretrained(pretrained)
+        # Add special separator line token:
+        self.tokenizer.add_special_tokens({'sep_token': '<sep>'})
+        self.plm.resize_token_embeddings(len(self.tokenizer))
+        self.config = self.plm.config
+        self.classifier = nn.Linear(self.config.hidden_size, 3)
+        self.softmax = nn.LogSoftmax(dim=-1)
+
+    def forward(self, input_ids, attention_mask, **kwargs):
+        decoder_input_ids = self.tokenizer('<pad>', return_tensors='pt').input_ids.to(input_ids.device)
+        # decoder_input_ids = self.model._shift_right(decoder_input_ids)
+        outputs = self.plm(input_ids=input_ids,
+                           decoder_input_ids=decoder_input_ids,
+                           attention_mask=attention_mask,
+                           **kwargs)
+        outputs = self.classifier(outputs.last_hidden_state)
+        outputs = torch.mean(outputs, dim=-2)
+        outputs = self.softmax(outputs)
+        return outputs
+
+    def freeze_plm(self, freeze=True):
+        for name, param in self.plm.named_parameters():
+            if "prompt" not in name:
+                param.requires_grad = not freeze
+
+    def save_plm(self, path):
+        self.plm.save_pretrained(path)
+        self.tokenizer.save_pretrained(path)
+
+    def load_plm(self, path):
+        del self.tokenizer
+        del self.plm
+        del self.config
+        self.tokenizer = AutoTokenizer.from_pretrained(path)
+        self.plm = AutoModel.from_pretrained(path)
         self.config = self.plm.config
