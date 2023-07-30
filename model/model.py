@@ -231,6 +231,7 @@ class Seq2seqBaseline(nn.Module):
 
     def forward(self, input_ids, attention_mask, **kwargs):
         decoder_input_ids = self.tokenizer('<pad>', return_tensors='pt').input_ids.to(input_ids.device)
+        decoder_input_ids = decoder_input_ids.repeat(input_ids.shape[0], 1)
         # decoder_input_ids = self.model._shift_right(decoder_input_ids)
         outputs = self.plm(input_ids=input_ids,
                            decoder_input_ids=decoder_input_ids,

@@ -190,7 +190,7 @@ class ESNLIDatasetForBaseline(Dataset):
             raise RuntimeError("model_type=1 has not been implemented for baseline datasets")
         elif self.model_type == 2:
             sep_token = self.tokenizer.sep_token
-            raw_input = f"{hypothesis}{sep_token}{premise}"
+            raw_input = f"{hypothesis} {sep_token} {premise}"
             encodings = self.tokenizer.encode(raw_input)
             encodings = encodings[:min(len(encodings), self.max_seq_length)]
             return {'input_ids': encodings,
@@ -339,7 +339,7 @@ class MNLIDatasetForBaseline(Dataset):
             raise RuntimeError("model_type=1 has not been implemented for baseline datasets")
         elif self.model_type == 2:
             sep_token = self.tokenizer.sep_token
-            raw_input = f"{hypothesis}{sep_token}{premise}"
+            raw_input = f"{hypothesis} {sep_token} {premise}"
             encodings = self.tokenizer.encode(raw_input)
             encodings = encodings[:min(len(encodings), self.max_seq_length)]
             return {'input_ids': encodings,
